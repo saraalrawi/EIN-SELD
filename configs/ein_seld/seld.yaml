@@ -19,7 +19,7 @@ data:
   audio_feature: logmel&intensity
   feature_freeze: True
 data_augmentation:
-  type: train_spec_aug  # train_spec_aug train_rotate_channel, pitchshift, train_spec_aug ,
+  type: train_spec_aug  # train_spec_aug train_rotate_channel, pitchshift
 training:
   train_id: EINV2_tPIT_n1
   model: EINV2
