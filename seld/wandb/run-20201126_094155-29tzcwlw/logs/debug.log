@@ -1,0 +1,23 @@
+2020-11-26 09:41:55,656 INFO    MainThread:28717 [wandb_setup.py:_flush():68] setting env: {}
+2020-11-26 09:41:55,656 INFO    MainThread:28717 [wandb_setup.py:_flush():68] multiprocessing start_methods=fork,spawn,forkserver
+2020-11-26 09:41:55,657 INFO    MainThread:28717 [wandb_setup.py:_flush():68] setting login settings: {}
+2020-11-26 09:41:55,657 INFO    MainThread:28717 [wandb_init.py:_log_setup():302] Logging user logs to /home/alrawis/EIN-SELD/seld/wandb/run-20201126_094155-29tzcwlw/logs/debug.log
+2020-11-26 09:41:55,657 INFO    MainThread:28717 [wandb_init.py:_log_setup():303] Logging internal logs to /home/alrawis/EIN-SELD/seld/wandb/run-20201126_094155-29tzcwlw/logs/debug-internal.log
+2020-11-26 09:42:00,839 WARNING MainThread:28717 [wandb_init.py:init():589] interrupted
+Traceback (most recent call last):
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/wandb/sdk/wandb_init.py", line 569, in init
+    run = wi.init()
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/wandb/sdk/wandb_init.py", line 394, in init
+    current_version=wandb.__version__
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/wandb/sdk/interface/interface.py", line 609, in communicate_check_version
+    result = self._communicate(rec)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/wandb/sdk/interface/interface.py", line 440, in _communicate
+    return future.get(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/wandb/sdk/interface/interface.py", line 58, in get
+    is_set = self._object_ready.wait(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/threading.py", line 552, in wait
+    signaled = self._cond.wait(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/threading.py", line 300, in wait
+    gotit = waiter.acquire(True, timeout)
+KeyboardInterrupt
+2020-11-26 09:42:01,189 INFO    MainThread:28717 [internal.py:handle_exit():138] Internal process exited

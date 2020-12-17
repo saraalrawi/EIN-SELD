@@ -1,0 +1,59 @@
+===> Training mode
+
+wandb: WARNING Calling run.save without any arguments is deprecated.Changes to attributes are automatically persisted.
+  0%|          | 0/46900 [00:00<?, ?it/s]---------------------------------------------------------------------------------------------------------------------------------------------------------
+                                         Iter: 0,  Epoch/Total Epoch: 0/100,  Batch/Total Batch: 0/469
+Train: loss_all: 0.000,  loss_sed: 0.000,  loss_doa: 0.000,  
+valid: loss_all: 0.780,  loss_sed: 1.012,  loss_doa: 0.549,  
+  0%|          | 0/46900 [00:46<?, ?it/s]                                           0%|          | 0/46900 [00:46<?, ?it/s]                                           0%|          | 0/46900 [00:46<?, ?it/s]                                           0%|          | 0/46900 [00:46<?, ?it/s]                                         valid: ER20: 2.265,  F20: 0.001,  LE20: 89.736,  LR20: 0.085,  seld20: 1.169,  ER19: 2.160,  F19: 0.086,  LE19: 29.316,  LR19: 0.219,  seld19: 1.004,  
+  0%|          | 0/46900 [00:46<?, ?it/s]                                         Train time: 2.348s,  Valid time: 44.191s,  Lr: 0.0005  0%|          | 0/46900 [00:46<?, ?it/s]                                           0%|          | 0/46900 [00:46<?, ?it/s]                                           0%|          | 0/46900 [00:46<?, ?it/s]
+PIT type: tPIT
+---------------------------------------------------------------------------------------------------------------------------------------------------------
+  0%|          | 1/46900 [00:48<629:47:16, 48.34s/it]  0%|          | 2/46900 [00:48<442:37:25, 33.98s/it]Exception ignored in: <function _MultiProcessingDataLoaderIter.__del__ at 0x7f54b9d297a0>
+Traceback (most recent call last):
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 1101, in __del__
+    self._shutdown_workers()
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 1075, in _shutdown_workers
+    w.join(timeout=_utils.MP_STATUS_CHECK_INTERVAL)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/process.py", line 140, in join
+    res = self._popen.wait(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/popen_fork.py", line 45, in wait
+    if not wait([self.sentinel], timeout):
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/connection.py", line 921, in wait
+    ready = selector.select(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+KeyboardInterrupt: 
+  0%|          | 2/46900 [00:49<319:52:07, 24.55s/it]
+Traceback (most recent call last):
+  File "/home/alrawis/EIN-SELD/seld/main_.py", line 84, in <module>
+    sys.exit(main(args, cfg))
+  File "/home/alrawis/EIN-SELD/seld/main_.py", line 47, in main
+    train.train(cfg, **train_initializer)
+  File "/home/alrawis/EIN-SELD/seld/learning/train.py", line 109, in train
+    trainer.train_step(batch_sample, epoch_it)
+  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/training.py", line 82, in train_step
+    pred = self.model(batch_x)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/parallel/data_parallel.py", line 153, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/models/seld.py", line 125, in forward
+    x_sed_1 = self.sed_trans_track1(x_sed).transpose(0, 1) # (N, T, C)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/transformer.py", line 181, in forward
+    output = mod(output, src_mask=mask, src_key_padding_mask=src_key_padding_mask)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/transformer.py", line 294, in forward
+    key_padding_mask=src_key_padding_mask)[0]
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
+    result = self.forward(*input, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/activation.py", line 927, in forward
+    attn_mask=attn_mask)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/functional.py", line 3958, in multi_head_attention_forward
+    if torch.equal(query, key) and torch.equal(key, value):
+KeyboardInterrupt

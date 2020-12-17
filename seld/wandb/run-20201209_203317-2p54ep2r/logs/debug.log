@@ -1,0 +1,31 @@
+2020-12-09 20:33:17,188 INFO    MainThread:28438 [wandb_setup.py:_flush():68] setting env: {}
+2020-12-09 20:33:17,188 INFO    MainThread:28438 [wandb_setup.py:_flush():68] multiprocessing start_methods=fork,spawn,forkserver
+2020-12-09 20:33:17,189 INFO    MainThread:28438 [wandb_setup.py:_flush():68] setting login settings: {}
+2020-12-09 20:33:17,189 INFO    MainThread:28438 [wandb_init.py:_log_setup():302] Logging user logs to /home/alrawis/EIN-SELD/seld/wandb/run-20201209_203317-2p54ep2r/logs/debug.log
+2020-12-09 20:33:17,190 INFO    MainThread:28438 [wandb_init.py:_log_setup():303] Logging internal logs to /home/alrawis/EIN-SELD/seld/wandb/run-20201209_203317-2p54ep2r/logs/debug-internal.log
+2020-12-09 20:33:27,323 INFO    MainThread:28438 [wandb_run.py:_console_start():1213] atexit reg
+2020-12-09 20:33:27,325 INFO    MainThread:28438 [wandb_run.py:_redirect():1083] redirect: SettingsConsole.REDIRECT
+2020-12-09 20:33:27,326 INFO    MainThread:28438 [wandb_run.py:_redirect():1086] Redirecting console.
+2020-12-09 20:33:27,327 INFO    MainThread:28438 [redirect.py:install():204] install start
+2020-12-09 20:33:27,333 INFO    MainThread:28438 [redirect.py:install():219] install stop
+2020-12-09 20:33:27,334 INFO    MainThread:28438 [redirect.py:install():204] install start
+2020-12-09 20:33:27,335 INFO    MainThread:28438 [redirect.py:install():219] install stop
+2020-12-09 20:33:27,336 INFO    MainThread:28438 [wandb_run.py:_redirect():1130] Redirects installed.
+2020-12-09 20:34:16,467 INFO    MainThread:28438 [wandb_run.py:_atexit_cleanup():1186] got exitcode: 0
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [wandb_run.py:_restore():1158] restore
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [redirect.py:uninstall():223] uninstall start
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [redirect.py:_stop():278] _stop: stdout
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [redirect.py:_stop():284] _stop closed: stdout
+2020-12-09 20:34:16,469 INFO    stdout    :28438 [redirect.py:_pipe_relay():120] relay done saw last write: stdout
+2020-12-09 20:34:16,469 INFO    stdout    :28438 [redirect.py:_pipe_relay():136] relay done done: stdout
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [redirect.py:_stop():290] _stop joined: stdout
+2020-12-09 20:34:16,469 INFO    MainThread:28438 [redirect.py:_stop():292] _stop rd closed: stdout
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:uninstall():227] uninstall done
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:uninstall():223] uninstall start
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:_stop():278] _stop: stderr
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:_stop():284] _stop closed: stderr
+2020-12-09 20:34:16,470 INFO    stderr    :28438 [redirect.py:_pipe_relay():120] relay done saw last write: stderr
+2020-12-09 20:34:16,470 INFO    stderr    :28438 [redirect.py:_pipe_relay():136] relay done done: stderr
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:_stop():290] _stop joined: stderr
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:_stop():292] _stop rd closed: stderr
+2020-12-09 20:34:16,470 INFO    MainThread:28438 [redirect.py:uninstall():227] uninstall done

@@ -1,0 +1,13 @@
+===> Training mode
+
+  0%|          | 0/21150 [00:00<?, ?it/s]  0%|          | 0/21150 [05:02<?, ?it/s]
+Traceback (most recent call last):
+  File "/home/alrawis/EIN-SELD/seld/main.py", line 80, in <module>
+    sys.exit(main(args, cfg))
+  File "/home/alrawis/EIN-SELD/seld/main.py", line 46, in main
+    train.train(cfg, **train_initializer)
+  File "/home/alrawis/EIN-SELD/seld/learning/train.py", line 52, in train
+    epoch_it=epoch_it
+  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/training.py", line 107, in validate_step
+    if batch_idx == max_batch_num:
+KeyboardInterrupt

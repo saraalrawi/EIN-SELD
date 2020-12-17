@@ -1,0 +1,24 @@
+{
+    "os": "Linux-4.15.0-123-generic-x86_64-with-debian-buster-sid",
+    "python": "3.7.9",
+    "heartbeatAt": "2020-12-14T19:38:49.240576",
+    "startedAt": "2020-12-14T19:38:38.332809",
+    "docker": null,
+    "gpu": "TITAN X (Pascal)",
+    "gpu_count": 2,
+    "cpu_count": 4,
+    "cuda": "10.1.105",
+    "args": [],
+    "state": "running",
+    "codePath": "seld/main_.py",
+    "program": "/home/alrawis/EIN-SELD/seld/main_.py",
+    "git": {
+        "remote": "https://github.com/yinkalario/EIN-SELD.git",
+        "commit": "f9d11015314d2ae0eac0ae5460c69bd8cfeb6de4"
+    },
+    "email": "sarah.jamal86@gmail.com",
+    "root": "/home/alrawis/EIN-SELD",
+    "host": "pearl1",
+    "username": "alrawis",
+    "executable": "/home/alrawis/miniconda3/envs/ein/bin/python3"
+}

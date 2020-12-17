@@ -1,0 +1,43 @@
+wandb: WARNING Calling run.save without any arguments is deprecated.Changes to attributes are automatically persisted.
+===> Training mode
+
+  0%|          | 0/70400 [00:00<?, ?it/s]                                         ---------------------------------------------------------------------------------------------------------------------------------------------------------
+Iter: 0,  Epoch/Total Epoch: 0/100,  Batch/Total Batch: 0/704  0%|          | 0/70400 [00:46<?, ?it/s]
+Train: loss_all: 0.000,  loss_sed: 0.000,  loss_doa: 0.000,  
+                                           0%|          | 0/70400 [00:46<?, ?it/s]                                           0%|          | 0/70400 [00:46<?, ?it/s]                                           0%|          | 0/70400 [00:46<?, ?it/s]valid: loss_all: 0.512,  loss_sed: 0.703,  loss_doa: 0.320,  
+valid: ER20: 2.670,  F20: 0.011,  LE20: 83.558,  LR20: 0.132,  seld20: 1.248,  ER19: 2.386,  F19: 0.142,  LE19: 38.285,  LR19: 0.306,  seld19: 1.038,  
+                                         Train time: 2.349s,  Valid time: 44.536s,  Lr: 0.0005
+PIT type: tPIT
+  0%|          | 0/70400 [00:46<?, ?it/s]                                           0%|          | 0/70400 [00:46<?, ?it/s]                                           0%|          | 0/70400 [00:46<?, ?it/s]---------------------------------------------------------------------------------------------------------------------------------------------------------
+                                           0%|          | 0/70400 [00:46<?, ?it/s]  0%|          | 1/70400 [00:48<952:48:16, 48.72s/it]  0%|          | 2/70400 [00:49<669:41:51, 34.25s/it]  0%|          | 3/70400 [00:49<471:31:19, 24.11s/it]  0%|          | 4/70400 [00:50<332:47:42, 17.02s/it]  0%|          | 5/70400 [00:50<235:44:17, 12.06s/it]  0%|          | 6/70400 [00:51<168:10:33,  8.60s/it]  0%|          | 7/70400 [00:51<120:27:48,  6.16s/it]  0%|          | 8/70400 [00:52<87:24:42,  4.47s/it]   0%|          | 9/70400 [00:52<64:02:36,  3.28s/it]  0%|          | 10/70400 [00:53<47:35:45,  2.43s/it]  0%|          | 11/70400 [00:53<36:04:16,  1.84s/it]  0%|          | 12/70400 [00:54<28:00:32,  1.43s/it]  0%|          | 13/70400 [00:54<22:49:04,  1.17s/it]  0%|          | 14/70400 [00:55<18:42:30,  1.05it/s]  0%|          | 15/70400 [00:55<16:04:30,  1.22it/s]  0%|          | 16/70400 [00:56<14:10:13,  1.38it/s]  0%|          | 17/70400 [00:56<13:00:44,  1.50it/s]  0%|          | 18/70400 [00:57<12:01:11,  1.63it/s]  0%|          | 19/70400 [00:57<11:09:27,  1.75it/s]  0%|          | 20/70400 [00:58<10:34:40,  1.85it/s]  0%|          | 21/70400 [00:58<10:29:54,  1.86it/s]  0%|          | 22/70400 [00:59<10:28:30,  1.87it/s]  0%|          | 23/70400 [00:59<10:20:36,  1.89it/s]  0%|          | 24/70400 [01:00<10:20:37,  1.89it/s]  0%|          | 25/70400 [01:00<10:05:11,  1.94it/s]  0%|          | 26/70400 [01:01<10:08:26,  1.93it/s]  0%|          | 27/70400 [01:01<10:05:58,  1.94it/s]  0%|          | 28/70400 [01:02<9:56:01,  1.97it/s]   0%|          | 29/70400 [01:02<10:02:15,  1.95it/s]  0%|          | 30/70400 [01:03<9:50:36,  1.99it/s]   0%|          | 31/70400 [01:03<10:01:57,  1.95it/s]  0%|          | 32/70400 [01:04<9:46:20,  2.00it/s]   0%|          | 33/70400 [01:04<9:49:35,  1.99it/s]  0%|          | 34/70400 [01:05<9:53:58,  1.97it/s]  0%|          | 35/70400 [01:05<9:41:33,  2.02it/s]  0%|          | 36/70400 [01:06<9:31:28,  2.05it/s]  0%|          | 37/70400 [01:06<9:24:58,  2.08it/s]  0%|          | 38/70400 [01:07<9:31:29,  2.05it/s]  0%|          | 39/70400 [01:07<10:00:24,  1.95it/s]  0%|          | 40/70400 [01:08<10:00:57,  1.95it/s]  0%|          | 41/70400 [01:08<9:48:35,  1.99it/s]   0%|          | 42/70400 [01:09<9:42:58,  2.01it/s]  0%|          | 43/70400 [01:09<9:54:53,  1.97it/s]  0%|          | 44/70400 [01:10<9:56:16,  1.97it/s]  0%|          | 45/70400 [01:10<10:06:05,  1.93it/s]  0%|          | 46/70400 [01:11<10:13:37,  1.91it/s]  0%|          | 47/70400 [01:11<9:58:02,  1.96it/s]   0%|          | 48/70400 [01:12<9:55:52,  1.97it/s]  0%|          | 49/70400 [01:12<9:42:00,  2.01it/s]  0%|          | 50/70400 [01:13<9:36:37,  2.03it/s]  0%|          | 51/70400 [01:13<9:59:09,  1.96it/s]  0%|          | 52/70400 [01:14<9:59:59,  1.95it/s]  0%|          | 53/70400 [01:14<10:04:26,  1.94it/s]  0%|          | 54/70400 [01:15<9:56:23,  1.97it/s]   0%|          | 55/70400 [01:15<9:44:13,  2.01it/s]  0%|          | 56/70400 [01:16<9:54:04,  1.97it/s]  0%|          | 57/70400 [01:16<9:43:55,  2.01it/s]  0%|          | 58/70400 [01:17<9:32:41,  2.05it/s]  0%|          | 59/70400 [01:17<9:25:09,  2.07it/s]  0%|          | 60/70400 [01:18<9:35:33,  2.04it/s]  0%|          | 61/70400 [01:18<9:50:59,  1.98it/s]  0%|          | 62/70400 [01:19<9:39:28,  2.02it/s]  0%|          | 63/70400 [01:19<9:49:48,  1.99it/s]  0%|          | 64/70400 [01:20<9:58:24,  1.96it/s]  0%|          | 65/70400 [01:20<10:11:18,  1.92it/s]  0%|          | 66/70400 [01:21<10:07:35,  1.93it/s]  0%|          | 67/70400 [01:21<9:55:28,  1.97it/s]   0%|          | 68/70400 [01:22<9:50:40,  1.98it/s]  0%|          | 69/70400 [01:22<9:39:54,  2.02it/s]  0%|          | 70/70400 [01:23<9:34:33,  2.04it/s]  0%|          | 71/70400 [01:23<9:52:41,  1.98it/s]  0%|          | 72/70400 [01:24<10:06:05,  1.93it/s]  0%|          | 73/70400 [01:24<9:58:28,  1.96it/s]   0%|          | 74/70400 [01:25<10:05:27,  1.94it/s]  0%|          | 75/70400 [01:25<9:53:52,  1.97it/s]   0%|          | 76/70400 [01:26<10:02:19,  1.95it/s]  0%|          | 77/70400 [01:26<10:06:39,  1.93it/s]  0%|          | 78/70400 [01:27<10:18:32,  1.89it/s]Exception ignored in: <function _MultiProcessingDataLoaderIter.__del__ at 0x7facc82217a0>
+Traceback (most recent call last):
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 1101, in __del__
+    self._shutdown_workers()
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 1075, in _shutdown_workers
+    w.join(timeout=_utils.MP_STATUS_CHECK_INTERVAL)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/process.py", line 140, in join
+    res = self._popen.wait(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/popen_fork.py", line 45, in wait
+    if not wait([self.sentinel], timeout):
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/multiprocessing/connection.py", line 921, in wait
+    ready = selector.select(timeout)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/selectors.py", line 415, in select
+    fd_event_list = self._selector.poll(timeout)
+KeyboardInterrupt: 
+  0%|          | 78/70400 [01:28<22:02:24,  1.13s/it]
+Traceback (most recent call last):
+  File "/home/alrawis/EIN-SELD/seld/main_.py", line 84, in <module>
+    sys.exit(main(args, cfg))
+  File "/home/alrawis/EIN-SELD/seld/main_.py", line 47, in main
+    train.train(cfg, **train_initializer)
+  File "/home/alrawis/EIN-SELD/seld/learning/train.py", line 109, in train
+    trainer.train_step(batch_sample, epoch_it)
+  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/training.py", line 85, in train_step
+    self.optimizer.step()
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/optim/lr_scheduler.py", line 67, in wrapper
+    return wrapped(*args, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/autograd/grad_mode.py", line 15, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/optim/adamw.py", line 108, in step
+    torch.max(max_exp_avg_sq, exp_avg_sq, out=max_exp_avg_sq)
+KeyboardInterrupt

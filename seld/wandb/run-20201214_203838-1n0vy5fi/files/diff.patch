@@ -1,0 +1,880 @@
+diff --git a/configs/ein_seld/seld.yaml b/configs/ein_seld/seld.yaml
+index 17668e3..d176f43 100644
+--- a/configs/ein_seld/seld.yaml
++++ b/configs/ein_seld/seld.yaml
+@@ -1,8 +1,8 @@
+ method: ein_seld
+ dataset: dcase2020task3
+-workspace_dir: ./
+-dataset_dir: ./_dataset/dataset_root
+-hdf5_dir: ./_hdf5
++workspace_dir: /home/alrawis/EIN-SELD/
++dataset_dir: /home/alrawis/EIN-SELD/_dataset/dataset_root/
++hdf5_dir: /home/alrawis/EIN-SELD/_hdf5/
+ data:
+   type: foa
+   sample_rate: 24000
+@@ -18,24 +18,25 @@ data:
+   test_hoplen_sec: 4
+   audio_feature: logmel&intensity
+   feature_freeze: True
+-data_augmentation: 
+-  type: None
++data_augmentation:
++  type: train_rotate_channel #, train_spec_aug  #pitchshift, train_spec_aug ,
+ training:
+   train_id: EINV2_tPIT_n1
+   model: EINV2
+-  resume_model: # None_epoch_latest.pth
++  resume_model:  # None_epoch_latest.pth
+   loss_type: all
+   loss_beta: 0.5
+   PIT_type: tPIT
++  constraints: orthgonal # currently only one constraint
+   batch_size: 32
+-  train_fold: 2,3,4,5,6
++  train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
+   valid_fold: 1
+   overlap: 1&2
+   optimizer: adam
+   lr: 0.0005
+   lr_step_size: 80
+   lr_gamma: 0.1
+-  max_epoch: 90
++  max_epoch: 215
+   threshold_sed: 0.5
+   remark: None
+ inference:
+@@ -47,4 +48,4 @@ inference:
+   models: EINV2
+   batch_size: 64
+   threshold_sed: 0.5
+-  remark: None
++  remark: None
+\ No newline at end of file
+diff --git a/scripts/evaluate.sh b/scripts/evaluate.sh
+index bbdc45e..bc0273c 100644
+--- a/scripts/evaluate.sh
++++ b/scripts/evaluate.sh
+@@ -4,4 +4,4 @@ set -e
+ 
+ CONFIG_FILE='./configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE evaluate
+\ No newline at end of file
++python3 seld/main.py -c $CONFIG_FILE evaluate
+\ No newline at end of file
+diff --git a/scripts/predict.sh b/scripts/predict.sh
+index 7524d99..04a659b 100644
+--- a/scripts/predict.sh
++++ b/scripts/predict.sh
+@@ -4,4 +4,4 @@ set -e
+ 
+ CONFIG_FILE='./configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE infer --num_workers=8
+\ No newline at end of file
++python3 seld/main.py -c $CONFIG_FILE infer --num_workers=4
+\ No newline at end of file
+diff --git a/scripts/train.sh b/scripts/train.sh
+index 21d302a..90845b7 100644
+--- a/scripts/train.sh
++++ b/scripts/train.sh
+@@ -2,6 +2,6 @@
+ 
+ set -e
+ 
+-CONFIG_FILE='./configs/ein_seld/seld.yaml'
++CONFIG_FILE='/home/alrawis/EIN-SELD/configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE train --seed=$(shuf -i 0-10000 -n 1) --num_workers=8
++python3 seld/main.py -c $CONFIG_FILE train --seed=$(shuf -i 0-10000 -n 1) --num_workers=8
+\ No newline at end of file
+diff --git a/seld/learning/checkpoint.py b/seld/learning/checkpoint.py
+index 1529596..58ef4af 100644
+--- a/seld/learning/checkpoint.py
++++ b/seld/learning/checkpoint.py
+@@ -5,7 +5,8 @@ from pathlib import Path
+ import numpy as np
+ import pandas as pd
+ import torch
+-
++import os
++#import wandb
+ 
+ class CheckpointIO:
+     """CheckpointIO class.
+@@ -140,6 +141,7 @@ class CheckpointIO:
+             'np_random': np.random.get_state(),
+         }
+         torch.save(outdict, checkpoint_path)
++        #wandb.save(os.path.join(wandb.run.dir, "*latest.pth"))
+ 
+     def load(self, checkpoint_path):
+         """Load a module from a file
+diff --git a/seld/learning/evaluate.py b/seld/learning/evaluate.py
+index 10dc1fb..bf682ff 100644
+--- a/seld/learning/evaluate.py
++++ b/seld/learning/evaluate.py
+@@ -11,6 +11,7 @@ from methods.utils.SELD_evaluation_metrics_2020 import \
+ from methods.utils.SELD_evaluation_metrics_2020 import early_stopping_metric
+ 
+ 
++
+ def evaluate(cfg, dataset):
+ 
+     """ Evaluate scores
+diff --git a/seld/learning/initialize.py b/seld/learning/initialize.py
+index f9fbc41..350268a 100644
+--- a/seld/learning/initialize.py
++++ b/seld/learning/initialize.py
+@@ -2,15 +2,15 @@ import logging
+ import random
+ import shutil
+ import socket
+-from datetime import datetime
+ from pathlib import Path
+-
++from datetime import datetime
+ import numpy as np
+ import torch
+ import torch.optim as optim
+ from torch.backends import cudnn
+ from torch.utils.tensorboard import SummaryWriter
+ from utils.common import create_logging
++#import wandb
+ from utils.config import (get_afextractor, get_generator, get_losses,
+                           get_metrics, get_models, get_optimizer, get_trainer,
+                           store_config)
+@@ -18,6 +18,8 @@ from utils.config import (get_afextractor, get_generator, get_losses,
+ from learning.checkpoint import CheckpointIO
+ 
+ 
++
++
+ def init_train(args, cfg, dataset):
+     """ Training initialization.
+ 
+@@ -38,7 +40,8 @@ def init_train(args, cfg, dataset):
+ 
+     '''Directories'''
+     print('Train ID is {}\n'.format(cfg['training']['train_id']))
+-    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train') \
++    stamp = datetime.now().strftime('%b%d_%H-%M-%S')
++    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_aug_'+ str(stamp)+ str(cfg['data']['type'])) \
+         .joinpath(cfg['method']).joinpath(cfg['training']['train_id'])
+     if out_train_dir.is_dir():
+         flag = input("Train ID folder {} is existed, delete it? (y/n)". \
+@@ -68,6 +71,8 @@ def init_train(args, cfg, dataset):
+     '''Data generator'''
+     train_set, train_generator, batch_sampler = get_generator(args, cfg, dataset, generator_type='train')
+     valid_set, valid_generator, _ = get_generator(args, cfg, dataset, generator_type='valid')
++    # train_set.dataset_type
++    ''' Data Augmentation '''
+ 
+     '''Loss'''
+     losses = get_losses(cfg)
+@@ -76,7 +81,7 @@ def init_train(args, cfg, dataset):
+     metrics = get_metrics(cfg, dataset)
+     
+     '''Audio feature extractor'''
+-    af_extractor = get_afextractor(cfg, args.cuda)
++    af_extractor = get_afextractor(cfg, args.cuda, data_type='train')
+ 
+     '''Model'''
+     model = get_models(cfg, dataset, args.cuda)
+@@ -108,6 +113,7 @@ def init_train(args, cfg, dataset):
+     if cfg['training']['resume_model']:
+         resume_path = ckpts_dir.joinpath(cfg['training']['resume_model'])
+         logging.info('=====>> Resume from the checkpoint: {}......\n'.format(str(resume_path)))
++        #wandb.restore(resume_path)
+         epoch_it, it = ckptIO.load(resume_path)
+         for param_group in optimizer.param_groups:
+             param_group['lr'] = cfg['training']['lr']
+@@ -146,7 +152,7 @@ def init_infer(args, cfg, dataset):
+     """
+ 
+     '''Cuda'''
+-    args.cuda = not args.no_cuda and torch.cuda.is_available() 
++    args.cuda = not args.no_cuda and torch.cuda.is_available()
+ 
+     '''Directories'''
+     print('Inference ID is {}\n'.format(cfg['inference']['infer_id']))
+@@ -161,6 +167,7 @@ def init_infer(args, cfg, dataset):
+     ckpts_paths_list = []
+     ckpts_models_list = []
+     for train_id, model_name in zip(train_ids, models):
++        #/home/alrawis/EIN-SELD/out_train/ein_seld/EINV2_tPIT_n1/checkpoints
+         ckpts_dir = Path(cfg['workspace_dir']).joinpath('out_train').joinpath(cfg['method']) \
+             .joinpath(train_id).joinpath('checkpoints')
+         ckpt_path = [path for path in sorted(ckpts_dir.iterdir()) if path.stem.split('_')[-1].isnumeric()]
+diff --git a/seld/learning/preprocess.py b/seld/learning/preprocess.py
+index 8009e46..c7e8750 100644
+--- a/seld/learning/preprocess.py
++++ b/seld/learning/preprocess.py
+@@ -15,6 +15,7 @@ from utils.common import float_samples_to_int16
+ from utils.config import get_afextractor
+ 
+ 
++
+ class Preprocessor:
+     """Preprocess the audio data.
+ 
+diff --git a/seld/learning/train.py b/seld/learning/train.py
+index d0485ab..f979a6c 100644
+--- a/seld/learning/train.py
++++ b/seld/learning/train.py
+@@ -4,12 +4,17 @@ from timeit import default_timer as timer
+ from tqdm import tqdm
+ 
+ from utils.common import print_metrics
++import wandb
+ 
+ 
+ def train(cfg, **initializer):
+     """Train
+ 
+     """
++    dict_cofig = cfg
++    run = wandb.init(project="ein-2021", config=dict_cofig , entity='newseld')
++    #wandb.save("./*.pth", base_path="./")
++    #run.save()
+     writer = initializer['writer']
+     train_generator = initializer['train_generator']
+     valid_generator = initializer['valid_generator']
+@@ -25,8 +30,7 @@ def train(cfg, **initializer):
+     logging.info('===> Training mode\n')
+     iterator = tqdm(train_generator, total=max_epoch*batchNum_per_epoch-it, unit='it')
+     train_begin_time = timer()
+-    for batch_sample in iterator:
+-
++    for batch_sample  in iterator:
+         epoch_it, rem_batch = it // batchNum_per_epoch, it % batchNum_per_epoch
+ 
+         ################
+@@ -39,7 +43,7 @@ def train(cfg, **initializer):
+             train_losses = trainer.validate_step(valid_type='train', epoch_it=epoch_it)
+             for k, v in train_losses.items():
+                 train_losses[k] = v / batchNum_per_epoch
+-
++                #wandb.log({k: v / batchNum_per_epoch})
+             if cfg['training']['valid_fold']:
+                 valid_losses, valid_metrics = trainer.validate_step(
+                     generator=valid_generator,
+@@ -48,6 +52,22 @@ def train(cfg, **initializer):
+                 )
+             valid_time = timer() - valid_begin_time
+ 
++
++            for k, v in valid_losses.items():
++                wandb.log({k: v })
++            wandb.log({'Er20': valid_metrics['ER20'] })
++            wandb.log({'F20': valid_metrics['F20'] })
++            wandb.log({'LE20': valid_metrics['LE20'] })
++            wandb.log({'LR20': valid_metrics['LR20'] })
++            wandb.log({'seld20': valid_metrics['seld20'] })
++            
++            wandb.log({'Er19': valid_metrics['ER19'] })
++            wandb.log({'F19': valid_metrics['F19'] })
++            wandb.log({'LE19': valid_metrics['LE19'] })
++            wandb.log({'LR19': valid_metrics['LR19'] })
++            wandb.log({'seld19': valid_metrics['seld19'] })
++
++
+             writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
+             logging.info('---------------------------------------------------------------------------------------------------'
+                 +'------------------------------------------------------')
+@@ -89,7 +109,6 @@ def train(cfg, **initializer):
+         trainer.train_step(batch_sample, epoch_it)
+         if rem_batch == 0 and it > 0:
+             lr_scheduler.step()
+-            
+         it += 1
+         
+     iterator.close()
+diff --git a/seld/main.py b/seld/main.py
+index b22ac75..8714b37 100644
+--- a/seld/main.py
++++ b/seld/main.py
+@@ -8,11 +8,10 @@ from utils.config import get_dataset
+ 
+ def main(args, cfg):
+     """Execute a task based on the given command-line arguments.
+-    
++
+     This function is the main entry-point of the program. It allows the
+     user to extract features, train a model, infer predictions, and
+     evaluate predictions using the command-line interface.
+-
+     Args:
+         args: command line arguments.
+     Return:
+@@ -46,7 +45,7 @@ def main(args, cfg):
+     elif args.mode == 'infer':
+         infer_initializer = initialize.init_infer(args, cfg, dataset)
+         infer.infer(cfg, dataset, **infer_initializer)
+-    
++
+     # Evaluate
+     elif args.mode == 'evaluate':
+         evaluate.evaluate(cfg, dataset)
+@@ -56,4 +55,4 @@ def main(args, cfg):
+ 
+ if __name__ == '__main__':
+     args, cfg = parse_cli_overides()
+-    sys.exit(main(args, cfg))
++    sys.exit(main(args, cfg))
+\ No newline at end of file
+diff --git a/seld/methods/ein_seld/data.py b/seld/methods/ein_seld/data.py
+index de29762..45e2182 100644
+--- a/seld/methods/ein_seld/data.py
++++ b/seld/methods/ein_seld/data.py
+@@ -6,6 +6,9 @@ import numpy as np
+ import torch
+ from methods.utils.data_utilities import (_segment_index, load_dcase_format,
+                                           to_metrics2020_format)
++from methods.ein_seld.data_augmentation.pitch_shift import apply_pitch_shift
++from methods.ein_seld.data_augmentation.channel_rotation import *
++
+ from torch.utils.data import Dataset, Sampler
+ from tqdm import tqdm
+ from utils.common import int16_samples_to_float32
+@@ -25,7 +28,6 @@ class UserDataset(Dataset):
+             overlap: '1' | '2'
+         """
+         super().__init__()
+-
+         self.dataset_type = dataset_type
+         self.read_into_mem = args.read_into_mem
+         self.sample_rate = cfg['data']['sample_rate']
+@@ -64,6 +66,24 @@ class UserDataset(Dataset):
+             self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
+                 if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
+                     and not path.name.startswith('.')]
++        elif self.dataset_type == 'train_rotate_channel':
++            # apply dataaugment
++            data_dirs = [dev_data_dir]
++            self.meta_dir = dev_meta_dir
++            train_fold = [int(fold.strip()) for fold in str(cfg['training']['train_fold']).split(',')]
++            ov_set = str(cfg['training']['overlap']) if not overlap else overlap
++            self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
++                               if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
++                               and not path.name.startswith('.')]
++        elif self.dataset_type == 'train_spec_aug':
++            data_dirs = [dev_data_dir]
++            self.meta_dir = dev_meta_dir
++            train_fold = [int(fold.strip()) for fold in str(cfg['training']['train_fold']).split(',')]
++            ov_set = str(cfg['training']['overlap']) if not overlap else overlap
++            self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
++                               if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
++                               and not path.name.startswith('.')]
++
+         elif self.dataset_type == 'valid':
+             if cfg['training']['valid_fold'] != 'eval':
+                 data_dirs = [dev_data_dir]
+@@ -113,6 +133,9 @@ class UserDataset(Dataset):
+                 if not path.name.startswith('.')]
+         self.paths_list = [Path(str(path) + '%' + str(n)) for path in self.paths_list for n in range(self.num_segments)]
+ 
++
++
++
+         # Read into memory
+         if self.read_into_mem:
+             load_begin_time = timer()
+@@ -184,13 +207,21 @@ class UserDataset(Dataset):
+         else:
+             path = self.paths_list[idx]
+             fn, n_segment = path.stem, int(path.name.split('%')[1])
+-            data_path = Path(str(path).split('%')[0])   
++            data_path = Path(str(path).split('%')[0])
+             index_begin = self.segmented_indexes[n_segment][0]
+             index_end = self.segmented_indexes[n_segment][1]
+             pad_width_before = self.segmented_pad_width[n_segment][0]
+             pad_width_after = self.segmented_pad_width[n_segment][1]
+-            with h5py.File(data_path, 'r') as hf:
+-                x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
++            if self.dataset_type == 'train_pitchshift':
++                with h5py.File(data_path, 'r') as hf:
++                    x = apply_pitch_shift(hf['waveform'][:, index_begin: index_end], self.sample_rate)
++            #elif self.dataset_type == 'train_rotate_channel':
++            #    with h5py.File(data_path, 'r') as hf:
++            #        file, pattern = apply_data_channel_rotation('foa',int16_samples_to_float32(hf['waveform'][:]))
++            #        x = file[:, index_begin: index_end]
++            else:
++                with h5py.File(data_path, 'r') as hf:
++                    x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
+             pad_width = ((0, 0), (pad_width_before, pad_width_after))                    
+             x = np.pad(x, pad_width, mode='constant')
+             if 'test' not in self.dataset_type:
+@@ -208,24 +239,25 @@ class UserDataset(Dataset):
+                     doa_label_new = np.zeros((pad_width_after_label, 2, 3))
+                     sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
+                     doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
+-
+         if 'test' not in self.dataset_type:
+             sample = {
+                 'filename': fn,
++                'data_type': self.dataset_type,
+                 'n_segment': n_segment,
+                 'ov': ov,
+                 'waveform': x,
+                 'sed_label': sed_label,
+                 'doa_label': doa_label
++
+             }
+         else:
+             sample = {
+                 'filename': fn,
+                 'n_segment': n_segment,
+-                'waveform': x
++                'waveform': x,
++                'data_type': self.dataset_type
+             }
+-          
+-        return sample    
++        return sample
+ 
+ 
+ class UserBatchSampler(Sampler):
+@@ -280,9 +312,11 @@ class PinMemCustomBatch:
+         batch_x = []
+         batch_sed_label = []
+         batch_doa_label = []
++        batch_data_type = []
+         
+         for n in range(len(batch_dict)):
+             batch_fn.append(batch_dict[n]['filename'])
++            batch_data_type.append(batch_dict[n]['data_type'])
+             batch_n_segment.append(batch_dict[n]['n_segment'])
+             batch_ov.append(batch_dict[n]['ov'])
+             batch_x.append(batch_dict[n]['waveform'])
+@@ -291,6 +325,7 @@ class PinMemCustomBatch:
+ 
+         self.batch_out_dict = {
+             'filename': batch_fn,
++            'data_type': batch_data_type,
+             'n_segment': batch_n_segment,
+             'ov': batch_ov,
+             'waveform': torch.tensor(batch_x, dtype=torch.float32),
+@@ -302,6 +337,7 @@ class PinMemCustomBatch:
+         self.batch_out_dict['waveform'] = self.batch_out_dict['waveform'].pin_memory()
+         self.batch_out_dict['sed_label'] = self.batch_out_dict['sed_label'].pin_memory()
+         self.batch_out_dict['doa_label'] = self.batch_out_dict['doa_label'].pin_memory()
++        #self.batch_out_dict['data_type'] = self.batch_out_dict['data_type'].pin_memory()
+         return self.batch_out_dict
+ 
+ 
+@@ -327,7 +363,8 @@ class PinMemCustomBatchTest:
+         self.batch_out_dict = {
+             'filename': batch_fn,
+             'n_segment': batch_n_segment,
+-            'waveform': torch.tensor(batch_x, dtype=torch.float32)
++            'waveform': torch.tensor(batch_x, dtype=torch.float32),
++            'data_type': ['valid']
+         }
+ 
+     def pin_memory(self):
+diff --git a/seld/methods/ein_seld/inference.py b/seld/methods/ein_seld/inference.py
+index 46ff392..c7764cd 100644
+--- a/seld/methods/ein_seld/inference.py
++++ b/seld/methods/ein_seld/inference.py
+@@ -17,6 +17,7 @@ class Inferer(BaseInferer):
+         self.af_extractor = af_extractor
+         self.model = model
+         self.cuda = cuda
++        #self.cuda = False
+ 
+         # Scalar
+         scalar_h5_dir = Path(cfg['hdf5_dir']).joinpath(cfg['dataset']).joinpath('scalar')
+diff --git a/seld/methods/ein_seld/losses.py b/seld/methods/ein_seld/losses.py
+index 95e53a5..5da47f7 100644
+--- a/seld/methods/ein_seld/losses.py
++++ b/seld/methods/ein_seld/losses.py
+@@ -1,5 +1,6 @@
+ import numpy as np
+ import torch
++import torch.nn as nn
+ from methods.utils.loss_utilities import BCEWithLogitsLoss, MSELoss
+ 
+ 
+@@ -12,6 +13,7 @@ class Losses:
+         self.losses = [BCEWithLogitsLoss(reduction='mean'), MSELoss(reduction='mean')]
+         self.losses_pit = [BCEWithLogitsLoss(reduction='PIT'), MSELoss(reduction='PIT')]
+ 
++
+         self.names = ['loss_all'] + [loss.name for loss in self.losses]
+     
+     def calculate(self, pred, target, epoch_it=0):
+@@ -75,3 +77,25 @@ class Losses:
+             'doa': updated_target_doa
+         }
+         return loss_sed, loss_doa, updated_target
++
++class DiffLoss(nn.Module):
++    def __init__(self):
++        super(DiffLoss, self).__init__()
++    def forward(self, input1, input2):
++        diff_loss = 0
++        return diff_loss
++
++    def orth_dist(mat_1, mat_2, stride=None):
++        """
++        this function finds the orthogonality distance between the layers in the model.
++        Params:
++            mat_1: layer 1
++            mat_2: layer 2
++        Returns:
++            orth_dist: orthogonality distance
++        """
++        mat_1 = mat_1.reshape((mat_1.shape[0], -1))
++        if mat_1.shape[0] < mat_1.shape[1]:
++            mat = mat_1.permute(1, 0)
++        orth_dist = torch.norm(torch.t(mat_1) @ mat_2 - torch.eye(mat_1.shape[1]).cuda())
++        return orth_dist
+\ No newline at end of file
+diff --git a/seld/methods/ein_seld/metrics.py b/seld/methods/ein_seld/metrics.py
+index 69db104..77513f1 100644
+--- a/seld/methods/ein_seld/metrics.py
++++ b/seld/methods/ein_seld/metrics.py
+@@ -8,6 +8,7 @@ class Metrics(object):
+     """Metrics for evaluation
+ 
+     """
++
+     def __init__(self, dataset):
+ 
+         self.metrics = []
+diff --git a/seld/methods/ein_seld/models/seld.py b/seld/methods/ein_seld/models/seld.py
+index 2f84239..09c9994 100644
+--- a/seld/methods/ein_seld/models/seld.py
++++ b/seld/methods/ein_seld/models/seld.py
+@@ -10,6 +10,7 @@ class EINV2(nn.Module):
+         super().__init__()
+         self.pe_enable = False  # Ture | False
+ 
++
+         if cfg['data']['audio_feature'] == 'logmel&intensity':
+             self.f_bins = cfg['data']['n_mels']
+             self.in_channels = 7
+@@ -137,6 +138,5 @@ class EINV2(nn.Module):
+             'sed': x_sed,
+             'doa': x_doa,
+         }
+-
+         return output
+ 
+diff --git a/seld/methods/ein_seld/training.py b/seld/methods/ein_seld/training.py
+index ac43f32..7bb34ff 100644
+--- a/seld/methods/ein_seld/training.py
++++ b/seld/methods/ein_seld/training.py
+@@ -11,6 +11,8 @@ from methods.utils.data_utilities import to_metrics2020_format
+ 
+ class Trainer(BaseTrainer):
+ 
++
++
+     def __init__(self, args, cfg, dataset, af_extractor, valid_set, model, optimizer, losses, metrics):
+ 
+         super().__init__()
+@@ -61,10 +63,11 @@ class Trainer(BaseTrainer):
+ 
+         """
+         batch_x = batch_sample['waveform']
++        data_type = batch_sample['data_type']
+         batch_target = {
+             'ov': batch_sample['ov'],
+             'sed': batch_sample['sed_label'],
+-            'doa': batch_sample['doa_label']
++            'doa': batch_sample['doa_label'],
+         }
+         if self.cuda:
+             batch_x = batch_x.cuda(non_blocking=True)
+@@ -74,7 +77,8 @@ class Trainer(BaseTrainer):
+         self.optimizer.zero_grad()
+         self.af_extractor.train()
+         self.model.train()
+-        batch_x = self.af_extractor(batch_x)
++
++        (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
+         batch_x = (batch_x - self.mean) / self.std
+         pred = self.model(batch_x)
+         loss_dict = self.losses.calculate(pred, batch_target)
+@@ -107,6 +111,7 @@ class Trainer(BaseTrainer):
+                     break
+ 
+                 batch_x = batch_sample['waveform']
++                data_type = batch_sample['data_type']
+                 batch_target = {
+                     'sed': batch_sample['sed_label'],
+                     'doa': batch_sample['doa_label']
+@@ -120,7 +125,7 @@ class Trainer(BaseTrainer):
+                 with torch.no_grad():
+                     self.af_extractor.eval()
+                     self.model.eval()
+-                    batch_x = self.af_extractor(batch_x)
++                    (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
+                     batch_x = (batch_x - self.mean) / self.std
+                     pred = self.model(batch_x)
+                 loss_dict = self.losses.calculate(pred, batch_target, epoch_it)
+diff --git a/seld/methods/feature.py b/seld/methods/feature.py
+index 6795334..b0ae4f9 100644
+--- a/seld/methods/feature.py
++++ b/seld/methods/feature.py
+@@ -1,12 +1,13 @@
+ import torch
+ import torch.nn as nn
+-
++from methods.ein_seld.data_augmentation import spec_augment_
++from methods.ein_seld.data_augmentation import spec_augment, channel_rotation
+ from methods.utils.stft import (STFT, LogmelFilterBank, intensityvector,
+                                 spectrogram_STFTInput)
+ 
+ 
+ class LogmelIntensity_Extractor(nn.Module):
+-    def __init__(self, cfg):
++    def __init__(self, cfg , data_type):
+         super().__init__()
+ 
+         data = cfg['data']
+@@ -14,6 +15,7 @@ class LogmelIntensity_Extractor(nn.Module):
+             data['sample_rate'], data['n_fft'], data['hop_length'], data['window'], data['n_mels'], \
+                 data['fmin'], data['fmax']
+         
++
+         center = True
+         pad_mode = 'reflect'
+         ref = 1.0
+@@ -36,19 +38,36 @@ class LogmelIntensity_Extractor(nn.Module):
+         # Intensity vector extractor
+         self.intensityVector_extractor = intensityvector
+ 
++        self.data_type = data_type
++
++
+     def forward(self, x):
+         """
+         input: 
+-            (batch_size, channels=4, data_length)
++            ((batch_size, channels=4, data_length), target ,data_type)
+         output: 
+             (batch_size, channels, time_steps, freq_bins)
+         """
+-        if x.ndim != 3:
++        input, target, ind, data_type = x
++        if input.ndim != 3:
+             raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
+-                            Now it is {}".format(x.shape))
+-        x = self.stft_extractor(x)
+-        logmel = self.logmel_extractor(self.spectrogram_extractor(x))
+-        intensity_vector = self.intensityVector_extractor(x, self.logmel_extractor.melW)
+-        out = torch.cat((logmel, intensity_vector), dim=1)
+-        return out
++                            Now it is {}".format(input.shape))
+ 
++        if ind == 'train':
++            for i , dt in enumerate(data_type):
++                if dt == 'train_rotate_channel':
++                    input[i, :, :], pattern = channel_rotation.apply_data_channel_rotation('foa',input[i, :, :])
++                    target['doa'][i] = channel_rotation.apply_label_channel_rotation('foa', target['doa'][i], pattern)
++
++        input = self.stft_extractor(input)
++        logmel = self.logmel_extractor(self.spectrogram_extractor(input))
++
++        if ind == 'train':
++            for i , dt in enumerate(data_type):
++                if dt == 'train_spec_aug':
++                    logmel_i = spec_augment.specaug(torch.squeeze(logmel[i,:,:,:]).permute(0, 2, 1))
++                    logmel[i,:,:,:] = logmel_i
++
++        intensity_vector = self.intensityVector_extractor(input, self.logmel_extractor.melW)
++        out = torch.cat((logmel, intensity_vector), dim=1)
++        return (out, target)
+\ No newline at end of file
+diff --git a/seld/methods/inference.py b/seld/methods/inference.py
+index 0748480..e13fc75 100644
+--- a/seld/methods/inference.py
++++ b/seld/methods/inference.py
+@@ -14,6 +14,7 @@ class BaseInferer:
+         """
+         raise NotImplementedError        
+ 
++
+     @staticmethod
+     def write_submission(submissions_dir, pred_dict):
+         """ Write predicted result to submission csv files
+diff --git a/seld/methods/training.py b/seld/methods/training.py
+index 63425e6..b7ae5e7 100644
+--- a/seld/methods/training.py
++++ b/seld/methods/training.py
+@@ -8,6 +8,7 @@ class BaseTrainer:
+         """
+         raise NotImplementedError
+ 
++
+     def validate_step(self, *args, **kwargs):
+         """ Perform a validation step
+ 
+diff --git a/seld/methods/utils/stft.py b/seld/methods/utils/stft.py
+index f9ceb78..df6f2a5 100644
+--- a/seld/methods/utils/stft.py
++++ b/seld/methods/utils/stft.py
+@@ -370,7 +370,7 @@ def spectrogram_STFTInput(input, power=2.0):
+     spectrogram = real ** 2 + imag ** 2
+ 
+     if power == 2.0:
+-        pass
++        pass #librosa.effects.pitch_shift(spectrogram[1,1,:,0].cpu().numpy() , 24000, n_steps=4)
+     else:
+         spectrogram = spectrogram ** (power / 2.0)
+ 
+diff --git a/seld/utils/cli_parser.py b/seld/utils/cli_parser.py
+index f4892f9..8f60100 100644
+--- a/seld/utils/cli_parser.py
++++ b/seld/utils/cli_parser.py
+@@ -8,16 +8,13 @@ from termcolor import cprint
+ 
+ def parse_cli_overides():
+     """Parse the command-line arguments.
+-
+     Parse args from CLI and override config dictionary entries
+-
+     This function implements the command-line interface of the program.
+     The interface accepts general command-line arguments as well as
+     arguments that are specific to a sub-command. The sub-commands are
+     *preprocess*, *train*, *predict*, and *evaluate*. Specifying a
+     sub-command is required, as it specifies the task that the program
+     should carry out.
+-
+     Returns:
+         args: The parsed arguments.
+     """
+@@ -26,7 +23,7 @@ def parse_cli_overides():
+     # from the config file(s) first and then overidden by the other
+     # command-line arguments later.
+     parser = argparse.ArgumentParser(
+-        description='Event Independent Network for Sound Event Localization and Detection.', 
++        description='Event Independent Network for Sound Event Localization and Detection.',
+         add_help=False
+     )
+     parser.add_argument('-c', '--config_file', help='Specify config file', metavar='FILE')
+@@ -40,7 +37,7 @@ def parse_cli_overides():
+     subparsers.required = True
+     parser_preproc.add_argument('--preproc_mode', choices=['extract_data', 'extract_scalar', 'extract_meta'],
+                                 required=True, help='select preprocessing mode')
+-    parser_preproc.add_argument('--dataset_type', default='dev', choices=['dev', 'eval'], 
++    parser_preproc.add_argument('--dataset_type', default='dev', choices=['dev', 'eval'],
+                                 help='select dataset to preprocess')
+     parser_preproc.add_argument('--num_workers', type=int, default=8, metavar='N')
+     parser_preproc.add_argument('--no_cuda', action='store_true', help='Do not use cuda.')
+@@ -72,4 +69,4 @@ def parse_cli_overides():
+ 
+ def replace_indent(stream):
+     stream = "     " + stream
+-    return stream.replace("\n", "\n     ")
++    return stream.replace("\n", "\n     ")
+\ No newline at end of file
+diff --git a/seld/utils/common.py b/seld/utils/common.py
+index e4ac213..45eb6ec 100644
+--- a/seld/utils/common.py
++++ b/seld/utils/common.py
+@@ -87,10 +87,13 @@ def move_model_to_gpu(model, cuda):
+ 
+     """
+     # TODO: change DataParallel to DistributedDataParallel
+-    model = torch.nn.DataParallel(model)
++    model = torch.nn.DataParallel(model,device_ids=[0])
++    #model = torch.nn.parallel.DistributedDataParallel(model)
+     if cuda:
++
+         logging.info('Utilize GPUs for computation')
+         logging.info('Number of GPU available: {}\n'.format(torch.cuda.device_count()))
++
+         model.cuda()
+     else:
+         logging.info('Utilize CPU for computation')
+diff --git a/seld/utils/config.py b/seld/utils/config.py
+index 4c12573..5692777 100644
+--- a/seld/utils/config.py
++++ b/seld/utils/config.py
+@@ -1,6 +1,6 @@
+ import logging
+ from pathlib import Path
+-
++import librosa
+ import methods.feature as feature
+ import torch.optim as optim
+ from methods import ein_seld
+@@ -17,7 +17,7 @@ method_dict = {
+ 
+ datasets_dict = {
+     'dcase2020task3': Dcase2020task3,
+-}
++ }
+ 
+ 
+ def store_config(output_path, config):
+@@ -63,10 +63,16 @@ def get_generator(args, cfg, dataset, generator_type):
+     if generator_type == 'train':
+ 
+         subset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train')
+-        if 'pitchshift' in cfg['data_augmentation']['type']:
+-            augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_pitchshift')
++        #if 'pitchshift' in cfg['data_augmentation']['type']:
++        #    augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_pitchshift')
++        #    subset = ConcatDataset([subset, augset])
++        if 'train_rotate_channel' in cfg['data_augmentation']['type']:
++            augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_rotate_channel')
++            subset = ConcatDataset([subset, augset])
++        if 'train_spec_aug' in cfg['data_augmentation']['type']:
++            augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_spec_aug')
+             subset = ConcatDataset([subset, augset])
+-        
++
+         batch_sampler = method_dict[cfg['method']].data.UserBatchSampler(
+             clip_num=len(subset), 
+             batch_size=cfg['training']['batch_size'], 
+@@ -97,7 +103,7 @@ def get_generator(args, cfg, dataset, generator_type):
+             dataset=subset,
+             batch_size=cfg['inference']['batch_size'],
+             shuffle=False,
+-            num_workers=args.num_workers,
++            num_workers=8, #args.num_workers
+             collate_fn=method_dict[cfg['method']].data.collate_fn_test,
+             pin_memory=True
+         )
+@@ -130,12 +136,12 @@ def get_metrics(cfg, dataset):
+ 
+ 
+ # Audio feature extractor
+-def get_afextractor(cfg, cuda):
++def get_afextractor(cfg, cuda , data_type):
+     """ Get audio feature extractor
+ 
+     """
+     if cfg['data']['audio_feature'] == 'logmel&intensity':
+-        afextractor = feature.LogmelIntensity_Extractor(cfg)
++        afextractor = feature.LogmelIntensity_Extractor(cfg, data_type)
+     afextractor = move_model_to_gpu(afextractor, cuda)
+     return afextractor
+ 
+@@ -190,7 +196,6 @@ def get_trainer(args, cfg, dataset, valid_set, af_extractor, model, optimizer, l
+ # Inferer
+ def get_inferer(cfg, dataset, af_extractor, model, cuda):
+     """ Get inferer
+-
+     """
+     inferer = method_dict[cfg['method']].inference.Inferer(
+         cfg=cfg, dataset=dataset, af_extractor=af_extractor, model=model, cuda=cuda
+diff --git a/seld/utils/datasets.py b/seld/utils/datasets.py
+index 467813d..99098b5 100644
+--- a/seld/utils/datasets.py
++++ b/seld/utils/datasets.py
+@@ -14,6 +14,7 @@ class Dcase2020task3:
+             'mic': self.root_dir.joinpath('mic_dev'),
+             'meta': self.root_dir.joinpath('metadata_dev'),            
+         }
++
+         self.dataset_dir['eval'] = {
+             'foa': self.root_dir.joinpath('foa_eval'),
+             'mic': self.root_dir.joinpath('mic_eval'),

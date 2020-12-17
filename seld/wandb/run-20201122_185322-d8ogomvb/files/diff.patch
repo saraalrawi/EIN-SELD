@@ -1,0 +1,433 @@
+diff --git a/configs/ein_seld/seld.yaml b/configs/ein_seld/seld.yaml
+index 17668e3..ab4c873 100644
+--- a/configs/ein_seld/seld.yaml
++++ b/configs/ein_seld/seld.yaml
+@@ -1,10 +1,10 @@
+ method: ein_seld
+ dataset: dcase2020task3
+-workspace_dir: ./
+-dataset_dir: ./_dataset/dataset_root
+-hdf5_dir: ./_hdf5
++workspace_dir: /home/alrawis/EIN-SELD/
++dataset_dir: /home/alrawis/EIN-SELD/_dataset/dataset_root/
++hdf5_dir: /home/alrawis/EIN-SELD/_hdf5/
+ data:
+-  type: foa
++  type: mic
+   sample_rate: 24000
+   n_fft: 1024
+   hop_length: 600
+@@ -28,7 +28,7 @@ training:
+   loss_beta: 0.5
+   PIT_type: tPIT
+   batch_size: 32
+-  train_fold: 2,3,4,5,6
++  train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
+   valid_fold: 1
+   overlap: 1&2
+   optimizer: adam
+diff --git a/scripts/evaluate.sh b/scripts/evaluate.sh
+index bbdc45e..bc0273c 100644
+--- a/scripts/evaluate.sh
++++ b/scripts/evaluate.sh
+@@ -4,4 +4,4 @@ set -e
+ 
+ CONFIG_FILE='./configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE evaluate
+\ No newline at end of file
++python3 seld/main.py -c $CONFIG_FILE evaluate
+\ No newline at end of file
+diff --git a/scripts/predict.sh b/scripts/predict.sh
+index 7524d99..04a659b 100644
+--- a/scripts/predict.sh
++++ b/scripts/predict.sh
+@@ -4,4 +4,4 @@ set -e
+ 
+ CONFIG_FILE='./configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE infer --num_workers=8
+\ No newline at end of file
++python3 seld/main.py -c $CONFIG_FILE infer --num_workers=4
+\ No newline at end of file
+diff --git a/scripts/train.sh b/scripts/train.sh
+index 21d302a..90845b7 100644
+--- a/scripts/train.sh
++++ b/scripts/train.sh
+@@ -2,6 +2,6 @@
+ 
+ set -e
+ 
+-CONFIG_FILE='./configs/ein_seld/seld.yaml'
++CONFIG_FILE='/home/alrawis/EIN-SELD/configs/ein_seld/seld.yaml'
+ 
+-python seld/main.py -c $CONFIG_FILE train --seed=$(shuf -i 0-10000 -n 1) --num_workers=8
++python3 seld/main.py -c $CONFIG_FILE train --seed=$(shuf -i 0-10000 -n 1) --num_workers=8
+\ No newline at end of file
+diff --git a/seld/learning/evaluate.py b/seld/learning/evaluate.py
+index 10dc1fb..bf682ff 100644
+--- a/seld/learning/evaluate.py
++++ b/seld/learning/evaluate.py
+@@ -11,6 +11,7 @@ from methods.utils.SELD_evaluation_metrics_2020 import \
+ from methods.utils.SELD_evaluation_metrics_2020 import early_stopping_metric
+ 
+ 
++
+ def evaluate(cfg, dataset):
+ 
+     """ Evaluate scores
+diff --git a/seld/learning/initialize.py b/seld/learning/initialize.py
+index f9fbc41..d225abe 100644
+--- a/seld/learning/initialize.py
++++ b/seld/learning/initialize.py
+@@ -18,6 +18,7 @@ from utils.config import (get_afextractor, get_generator, get_losses,
+ from learning.checkpoint import CheckpointIO
+ 
+ 
++
+ def init_train(args, cfg, dataset):
+     """ Training initialization.
+ 
+@@ -38,7 +39,7 @@ def init_train(args, cfg, dataset):
+ 
+     '''Directories'''
+     print('Train ID is {}\n'.format(cfg['training']['train_id']))
+-    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train') \
++    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_scratch__') \
+         .joinpath(cfg['method']).joinpath(cfg['training']['train_id'])
+     if out_train_dir.is_dir():
+         flag = input("Train ID folder {} is existed, delete it? (y/n)". \
+@@ -146,7 +147,7 @@ def init_infer(args, cfg, dataset):
+     """
+ 
+     '''Cuda'''
+-    args.cuda = not args.no_cuda and torch.cuda.is_available() 
++    args.cuda = not args.no_cuda and torch.cuda.is_available()
+ 
+     '''Directories'''
+     print('Inference ID is {}\n'.format(cfg['inference']['infer_id']))
+@@ -161,6 +162,7 @@ def init_infer(args, cfg, dataset):
+     ckpts_paths_list = []
+     ckpts_models_list = []
+     for train_id, model_name in zip(train_ids, models):
++        #/home/alrawis/EIN-SELD/out_train/ein_seld/EINV2_tPIT_n1/checkpoints
+         ckpts_dir = Path(cfg['workspace_dir']).joinpath('out_train').joinpath(cfg['method']) \
+             .joinpath(train_id).joinpath('checkpoints')
+         ckpt_path = [path for path in sorted(ckpts_dir.iterdir()) if path.stem.split('_')[-1].isnumeric()]
+diff --git a/seld/learning/preprocess.py b/seld/learning/preprocess.py
+index 8009e46..c7e8750 100644
+--- a/seld/learning/preprocess.py
++++ b/seld/learning/preprocess.py
+@@ -15,6 +15,7 @@ from utils.common import float_samples_to_int16
+ from utils.config import get_afextractor
+ 
+ 
++
+ class Preprocessor:
+     """Preprocess the audio data.
+ 
+diff --git a/seld/learning/train.py b/seld/learning/train.py
+index d0485ab..7b7ef71 100644
+--- a/seld/learning/train.py
++++ b/seld/learning/train.py
+@@ -4,12 +4,17 @@ from timeit import default_timer as timer
+ from tqdm import tqdm
+ 
+ from utils.common import print_metrics
++import wandb
+ 
+ 
+ def train(cfg, **initializer):
+     """Train
+ 
+     """
++    # log with wandb
++    #dict_cofig = dict()
++    dict_cofig = cfg
++    wandb.init(project="ein-2021", config=dict_cofig , entity='newseld')
+     writer = initializer['writer']
+     train_generator = initializer['train_generator']
+     valid_generator = initializer['valid_generator']
+@@ -39,7 +44,7 @@ def train(cfg, **initializer):
+             train_losses = trainer.validate_step(valid_type='train', epoch_it=epoch_it)
+             for k, v in train_losses.items():
+                 train_losses[k] = v / batchNum_per_epoch
+-
++                wandb.log({k: v / batchNum_per_epoch})
+             if cfg['training']['valid_fold']:
+                 valid_losses, valid_metrics = trainer.validate_step(
+                     generator=valid_generator,
+@@ -47,6 +52,7 @@ def train(cfg, **initializer):
+                     epoch_it=epoch_it
+                 )
+             valid_time = timer() - valid_begin_time
++            wandb.log({k: v / batchNum_per_epoch})
+ 
+             writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
+             logging.info('---------------------------------------------------------------------------------------------------'
+diff --git a/seld/main.py b/seld/main.py
+index b22ac75..10f4920 100644
+--- a/seld/main.py
++++ b/seld/main.py
+@@ -1,9 +1,12 @@
+ import sys
++import random
+ from pathlib import Path
+ 
+ from learning import evaluate, initialize, infer, preprocess, train
+ from utils.cli_parser import parse_cli_overides
++from ruamel.yaml import YAML
+ from utils.config import get_dataset
++from termcolor import cprint
+ 
+ 
+ def main(args, cfg):
+@@ -52,8 +55,26 @@ def main(args, cfg):
+         evaluate.evaluate(cfg, dataset)
+ 
+     return 0
++def replace_indent(stream):
++    stream = "     " + stream
++    return stream.replace("\n", "\n     ")
+ 
+-
++# changes for debugging purpose
+ if __name__ == '__main__':
+-    args, cfg = parse_cli_overides()
++    args = parse_cli_overides(config_file='/home/alrawis/EIN-SELD/configs/ein_seld/seld.yaml')
++    args.num_workers = 8
++    args.no_cuda = False
++    args.read_into_mem = False
++    args.mode = 'train'
++    config_file = '/home/alrawis/EIN-SELD/configs/ein_seld/seld.yaml'
++    seed = random.randint(1, 1000)
++    args.seed = seed
++    yaml = YAML()
++    yaml.indent(mapping=4, sequence=6, offset=3)
++    yaml.default_flow_style = False
++    with open(config_file, 'r') as f:
++        cfg = yaml.load(f)
++
++    yaml.dump(cfg, sys.stdout, transform=replace_indent)
++    cprint("Cfg:", "red")
+     sys.exit(main(args, cfg))
+diff --git a/seld/methods/ein_seld/inference.py b/seld/methods/ein_seld/inference.py
+index 46ff392..c7764cd 100644
+--- a/seld/methods/ein_seld/inference.py
++++ b/seld/methods/ein_seld/inference.py
+@@ -17,6 +17,7 @@ class Inferer(BaseInferer):
+         self.af_extractor = af_extractor
+         self.model = model
+         self.cuda = cuda
++        #self.cuda = False
+ 
+         # Scalar
+         scalar_h5_dir = Path(cfg['hdf5_dir']).joinpath(cfg['dataset']).joinpath('scalar')
+diff --git a/seld/methods/ein_seld/losses.py b/seld/methods/ein_seld/losses.py
+index 95e53a5..dbe6802 100644
+--- a/seld/methods/ein_seld/losses.py
++++ b/seld/methods/ein_seld/losses.py
+@@ -12,6 +12,7 @@ class Losses:
+         self.losses = [BCEWithLogitsLoss(reduction='mean'), MSELoss(reduction='mean')]
+         self.losses_pit = [BCEWithLogitsLoss(reduction='PIT'), MSELoss(reduction='PIT')]
+ 
++
+         self.names = ['loss_all'] + [loss.name for loss in self.losses]
+     
+     def calculate(self, pred, target, epoch_it=0):
+diff --git a/seld/methods/ein_seld/metrics.py b/seld/methods/ein_seld/metrics.py
+index 69db104..77513f1 100644
+--- a/seld/methods/ein_seld/metrics.py
++++ b/seld/methods/ein_seld/metrics.py
+@@ -8,6 +8,7 @@ class Metrics(object):
+     """Metrics for evaluation
+ 
+     """
++
+     def __init__(self, dataset):
+ 
+         self.metrics = []
+diff --git a/seld/methods/ein_seld/models/seld.py b/seld/methods/ein_seld/models/seld.py
+index 2f84239..80203a0 100644
+--- a/seld/methods/ein_seld/models/seld.py
++++ b/seld/methods/ein_seld/models/seld.py
+@@ -10,6 +10,7 @@ class EINV2(nn.Module):
+         super().__init__()
+         self.pe_enable = False  # Ture | False
+ 
++
+         if cfg['data']['audio_feature'] == 'logmel&intensity':
+             self.f_bins = cfg['data']['n_mels']
+             self.in_channels = 7
+diff --git a/seld/methods/ein_seld/training.py b/seld/methods/ein_seld/training.py
+index ac43f32..0d17f15 100644
+--- a/seld/methods/ein_seld/training.py
++++ b/seld/methods/ein_seld/training.py
+@@ -11,6 +11,7 @@ from methods.utils.data_utilities import to_metrics2020_format
+ 
+ class Trainer(BaseTrainer):
+ 
++
+     def __init__(self, args, cfg, dataset, af_extractor, valid_set, model, optimizer, losses, metrics):
+ 
+         super().__init__()
+diff --git a/seld/methods/feature.py b/seld/methods/feature.py
+index 6795334..a64cee1 100644
+--- a/seld/methods/feature.py
++++ b/seld/methods/feature.py
+@@ -14,6 +14,7 @@ class LogmelIntensity_Extractor(nn.Module):
+             data['sample_rate'], data['n_fft'], data['hop_length'], data['window'], data['n_mels'], \
+                 data['fmin'], data['fmax']
+         
++
+         center = True
+         pad_mode = 'reflect'
+         ref = 1.0
+diff --git a/seld/methods/inference.py b/seld/methods/inference.py
+index 0748480..e13fc75 100644
+--- a/seld/methods/inference.py
++++ b/seld/methods/inference.py
+@@ -14,6 +14,7 @@ class BaseInferer:
+         """
+         raise NotImplementedError        
+ 
++
+     @staticmethod
+     def write_submission(submissions_dir, pred_dict):
+         """ Write predicted result to submission csv files
+diff --git a/seld/methods/training.py b/seld/methods/training.py
+index 63425e6..b7ae5e7 100644
+--- a/seld/methods/training.py
++++ b/seld/methods/training.py
+@@ -8,6 +8,7 @@ class BaseTrainer:
+         """
+         raise NotImplementedError
+ 
++
+     def validate_step(self, *args, **kwargs):
+         """ Perform a validation step
+ 
+diff --git a/seld/utils/cli_parser.py b/seld/utils/cli_parser.py
+index f4892f9..987310e 100644
+--- a/seld/utils/cli_parser.py
++++ b/seld/utils/cli_parser.py
+@@ -6,7 +6,7 @@ from ruamel.yaml import YAML
+ from termcolor import cprint
+ 
+ 
+-def parse_cli_overides():
++def parse_cli_overides(config_file = '/home/alrawis/EIN-SELD/configs/ein_seld/seld.yaml'):
+     """Parse the command-line arguments.
+ 
+     Parse args from CLI and override config dictionary entries
+@@ -25,22 +25,26 @@ def parse_cli_overides():
+     # option from the other arguments. This way, options can be parsed
+     # from the config file(s) first and then overidden by the other
+     # command-line arguments later.
++
+     parser = argparse.ArgumentParser(
+         description='Event Independent Network for Sound Event Localization and Detection.', 
+         add_help=False
+     )
+-    parser.add_argument('-c', '--config_file', help='Specify config file', metavar='FILE')
++    #parser.add_argument('-c', '--config_file', help='Specify config file', metavar='FILE')
++    #parser.add_argument('--config_file', default=config_file)
++    #parser.add_argument('--mode', default='train')
++
+     subparsers = parser.add_subparsers(dest='mode')
+     parser_preproc = subparsers.add_parser('preprocess')
+     parser_train = subparsers.add_parser('train')
+     parser_infer = subparsers.add_parser('infer')
+-    subparsers.add_parser('evaluate')
++    subparsers.add_parser('train')
+ 
+     # Require the user to specify a sub-command
+-    subparsers.required = True
++    subparsers.required = False
+     parser_preproc.add_argument('--preproc_mode', choices=['extract_data', 'extract_scalar', 'extract_meta'],
+                                 required=True, help='select preprocessing mode')
+-    parser_preproc.add_argument('--dataset_type', default='dev', choices=['dev', 'eval'], 
++    parser_preproc.add_argument('--dataset_type', default='dev', choices=['dev', 'eval'],
+                                 help='select dataset to preprocess')
+     parser_preproc.add_argument('--num_workers', type=int, default=8, metavar='N')
+     parser_preproc.add_argument('--no_cuda', action='store_true', help='Do not use cuda.')
+@@ -51,10 +55,12 @@ def parse_cli_overides():
+     parser_infer.add_argument('--num_workers', type=int, default=8, metavar='N')
+     parser_infer.add_argument('--read_into_mem', action='store_true')
+     parser_infer.add_argument('--no_cuda', action='store_true', help='Do not use cuda.')
++    #parser_train.add_argument('--mode', default='train')
+ 
+     args = parser.parse_args()
+     args_dict = vars(args)
+     cprint("Args:", "green")
++    '''
+     for key, value in args_dict.items():
+         print(f"     {key:25s} -> {value}")
+ 
+@@ -67,9 +73,10 @@ def parse_cli_overides():
+         cfg = yaml.load(f)
+     cprint("Cfg:", "red")
+     yaml.dump(cfg, sys.stdout, transform=replace_indent)
++    '''
++    return args #cfg
+ 
+-    return args, cfg
+ 
+ def replace_indent(stream):
+     stream = "     " + stream
+-    return stream.replace("\n", "\n     ")
++    return stream.replace("\n", "\n     ")
+\ No newline at end of file
+diff --git a/seld/utils/common.py b/seld/utils/common.py
+index e4ac213..45eb6ec 100644
+--- a/seld/utils/common.py
++++ b/seld/utils/common.py
+@@ -87,10 +87,13 @@ def move_model_to_gpu(model, cuda):
+ 
+     """
+     # TODO: change DataParallel to DistributedDataParallel
+-    model = torch.nn.DataParallel(model)
++    model = torch.nn.DataParallel(model,device_ids=[0])
++    #model = torch.nn.parallel.DistributedDataParallel(model)
+     if cuda:
++
+         logging.info('Utilize GPUs for computation')
+         logging.info('Number of GPU available: {}\n'.format(torch.cuda.device_count()))
++
+         model.cuda()
+     else:
+         logging.info('Utilize CPU for computation')
+diff --git a/seld/utils/config.py b/seld/utils/config.py
+index 4c12573..cf16703 100644
+--- a/seld/utils/config.py
++++ b/seld/utils/config.py
+@@ -17,7 +17,7 @@ method_dict = {
+ 
+ datasets_dict = {
+     'dcase2020task3': Dcase2020task3,
+-}
++ }
+ 
+ 
+ def store_config(output_path, config):
+@@ -97,7 +97,7 @@ def get_generator(args, cfg, dataset, generator_type):
+             dataset=subset,
+             batch_size=cfg['inference']['batch_size'],
+             shuffle=False,
+-            num_workers=args.num_workers,
++            num_workers=8, #args.num_workers
+             collate_fn=method_dict[cfg['method']].data.collate_fn_test,
+             pin_memory=True
+         )
+diff --git a/seld/utils/datasets.py b/seld/utils/datasets.py
+index 467813d..99098b5 100644
+--- a/seld/utils/datasets.py
++++ b/seld/utils/datasets.py
+@@ -14,6 +14,7 @@ class Dcase2020task3:
+             'mic': self.root_dir.joinpath('mic_dev'),
+             'meta': self.root_dir.joinpath('metadata_dev'),            
+         }
++
+         self.dataset_dir['eval'] = {
+             'foa': self.root_dir.joinpath('foa_eval'),
+             'mic': self.root_dir.joinpath('mic_eval'),
