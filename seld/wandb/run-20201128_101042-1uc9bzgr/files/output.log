@@ -1,23 +1,0 @@
-===> Training mode
-
-  0%|          | 0/42210 [00:00<?, ?it/s]/home/alrawis/EIN-SELD/seld/methods/ein_seld/data.py:1: H5pyDeprecationWarning: dataset.value has been deprecated. Use dataset[()] instead.
-  from pathlib import Path
-  0%|          | 0/42210 [40:25<?, ?it/s]
-Traceback (most recent call last):
-  File "/home/alrawis/EIN-SELD/seld/main_.py", line 84, in <module>
-    sys.exit(main(args, cfg))
-  File "/home/alrawis/EIN-SELD/seld/main_.py", line 47, in main
-    train.train(cfg, **train_initializer)
-  File "/home/alrawis/EIN-SELD/seld/learning/train.py", line 32, in train
-    for batch_sample in iterator:
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/tqdm/std.py", line 1171, in __iter__
-    for obj in iterable:
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 363, in __next__
-    data = self._next_data()
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 974, in _next_data
-    idx, data = self._get_data()
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 931, in _get_data
-    success, data = self._try_get_data()
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/utils/data/dataloader.py", line 779, in _try_get_data
-    data = self._data_queue.get(timeout=timeout)
-KeyboardInterrupt

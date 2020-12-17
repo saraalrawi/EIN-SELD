@@ -1,53 +1,0 @@
-wandb: WARNING Symlinked 0 file into the W&B run directory, call wandb.save again to sync new files.
-wandb: WARNING Calling run.save without any arguments is deprecated.Changes to attributes are automatically persisted.
-===> Training mode
-  0%|          | 0/151360 [00:00<?, ?it/s]
-                                          ---------------------------------------------------------------------------------------------------------------------------------------------------------
-Iter: 0,  Epoch/Total Epoch: 0/215,  Batch/Total Batch: 0/704
-Train: loss_all: 0.000,  loss_sed: 0.000,  loss_doa: 0.000,  
-valid: loss_all: 0.744,  loss_sed: 0.864,  loss_doa: 0.625,  
-  0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]valid: ER20: 3.017,  F20: 0.000,  LE20: 95.418,  LR20: 0.100,  seld20: 1.362,  ER19: 2.795,  F19: 0.099,  LE19: 35.390,  LR19: 0.212,  seld19: 1.170,                                            
-Train time: 2.683s,  Valid time: 44.262s,  Lr: 0.0005
-PIT type: tPIT
-  0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]                                            0%|          | 0/151360 [00:46<?, ?it/s]---------------------------------------------------------------------------------------------------------------------------------------------------------
-  0%|          | 0/151360 [00:47<?, ?it/s]
-Traceback (most recent call last):
-  File "/home/alrawis/.pycharm_helpers/pydev/pydevd.py", line 1448, in _exec
-    pydev_imports.execfile(file, globals, locals)  # execute the script
-  File "/home/alrawis/.pycharm_helpers/pydev/_pydev_imps/_pydev_execfile.py", line 18, in execfile
-    exec(compile(contents+"\n", file, 'exec'), glob, loc)
-  File "/home/alrawis/EIN-SELD/seld/main_.py", line 84, in <module>
-    sys.exit(main(args, cfg))
-  File "/home/alrawis/EIN-SELD/seld/main_.py", line 47, in main
-    train.train(cfg, **train_initializer)
-  File "/home/alrawis/EIN-SELD/seld/learning/train.py", line 109, in train
-    trainer.train_step(batch_sample, epoch_it)
-  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/training.py", line 83, in train_step
-    pred = self.model(batch_x)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/parallel/data_parallel.py", line 153, in forward
-    return self.module(*inputs[0], **kwargs[0])
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/EIN-SELD/seld/methods/ein_seld/models/seld.py", line 100, in forward
-    x_sed = self.sed_conv_block2(x_sed)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/container.py", line 117, in forward
-    input = module(input)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/EIN-SELD/seld/methods/utils/model_utilities.py", line 54, in forward
-    x = self.double_conv(x)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/container.py", line 117, in forward
-    input = module(input)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/module.py", line 722, in _call_impl
-    result = self.forward(*input, **kwargs)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/modules/batchnorm.py", line 136, in forward
-    self.weight, self.bias, bn_training, exponential_average_factor, self.eps)
-  File "/home/alrawis/miniconda3/envs/ein/lib/python3.7/site-packages/torch/nn/functional.py", line 2016, in batch_norm
-    training, momentum, eps, torch.backends.cudnn.enabled
-RuntimeError: CUDA out of memory. Tried to allocate 160.00 MiB (GPU 0; 11.90 GiB total capacity; 3.14 GiB already allocated; 154.81 MiB free; 3.33 GiB reserved in total by PyTorch)
