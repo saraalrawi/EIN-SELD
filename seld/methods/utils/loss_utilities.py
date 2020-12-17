@@ -42,7 +42,7 @@ class OrthogonalLoss(nn.Module):
         diff_loss = 0
         return diff_loss
 
-    def calculate_orthogonal_loss(mat_1, mat_2, stride=None):
+    def calculate_orthogonal_loss(self,mat_1, mat_2, stride=None):
         """
         this function finds the orthogonality distance between the layers in the model.
         Params:
