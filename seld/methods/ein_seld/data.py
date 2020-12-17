@@ -75,6 +75,15 @@ class UserDataset(Dataset):
                                if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
                                and not path.name.startswith('.')]
 
+        elif self.dataset_type == 'train_rotate_channel':
+            data_dirs = [dev_data_dir]
+            self.meta_dir = dev_meta_dir
+            train_fold = [int(fold.strip()) for fold in str(cfg['training']['train_fold']).split(',')]
+            ov_set = str(cfg['training']['overlap']) if not overlap else overlap
+            self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
+                               if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
+                               and not path.name.startswith('.')]
+
         elif self.dataset_type == 'valid':
             if cfg['training']['valid_fold'] != 'eval':
                 data_dirs = [dev_data_dir]
