@@ -19,7 +19,7 @@ data:
   audio_feature: logmel&intensity
   feature_freeze: True
 data_augmentation:
-  type: train_spec_aug  # train_spec_aug train_rotate_channel, pitchshift
+  type: None # train_spec_aug train_rotate_channel, pitchshift
 training:
   train_id: EINV2_tPIT_n1
   model: EINV2
@@ -27,7 +27,8 @@ training:
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  constraints: orthgonal # currently only one constraint
+  constraints: orthogonal # currently only one constraint
+  orthogonal_decay: 1e-6 # orthogonality weight decay
   batch_size: 32
   train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
   valid_fold: 1
