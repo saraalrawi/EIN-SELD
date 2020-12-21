@@ -1,6 +1,8 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.nn.functional import normalize
+from torch.autograd import Variable
 from methods.utils.loss_utilities import BCEWithLogitsLoss, MSELoss
 
 
@@ -9,14 +11,14 @@ class Losses:
         
         self.cfg = cfg
         self.beta = cfg['training']['loss_beta']
-
+        self.decay = cfg['training']['orthogonal_decay']
         self.losses = [BCEWithLogitsLoss(reduction='mean'), MSELoss(reduction='mean')]
         self.losses_pit = [BCEWithLogitsLoss(reduction='PIT'), MSELoss(reduction='PIT')]
 
 
         self.names = ['loss_all'] + [loss.name for loss in self.losses]
     
-    def calculate(self, pred, target, epoch_it=0):
+    def calculate(self, pred, target, epoch_it,model):
 
         if 'PIT' not in self.cfg['training']['PIT_type']:
             updated_target = target
@@ -24,15 +26,30 @@ class Losses:
             loss_doa = self.losses[1].calculate_loss(pred['doa'], updated_target['doa'])
         elif self.cfg['training']['PIT_type'] == 'tPIT':
             loss_sed, loss_doa, updated_target = self.tPIT(pred, target)
+            if self.cfg['training']['constraints'] == 'orthogonal':
+                loss_orthogonal = self.orthogonal_distance(model)
+        if self.cfg['training']['constraints'] == 'orthogonal':
+            orthogonal_constraint_loss = self.adjust_ortho_decay_rate(epoch_it + 1) * loss_orthogonal
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
 
-        loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa
-        losses_dict = {
-            'all': loss_all,
-            'sed': loss_sed,
-            'doa': loss_doa,
-            'updated_target': updated_target
-        }
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'orthogonal': orthogonal_constraint_loss,
+                'updated_target': updated_target
+            }
+        else:
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'updated_target': updated_target
+            }
         return losses_dict
+
+
 
     def tPIT(self, pred, target):
         """Frame Permutation Invariant Training for 2 possible combinations
@@ -78,24 +95,43 @@ class Losses:
         }
         return loss_sed, loss_doa, updated_target
 
-class DiffLoss(nn.Module):
-    def __init__(self):
-        super(DiffLoss, self).__init__()
-    def forward(self, input1, input2):
-        diff_loss = 0
-        return diff_loss
+    def orthogonal_distance(self, model):
+        l2_reg = None
+        for W in model.parameters():
+            if W.ndimension() < 2:
+                continue
+            else:
+                cols = W[0].numel()
+                rows = W.shape[0]
+                w1 = W.view(-1, cols)
+                wt = torch.transpose(w1, 0, 1)
+                m = torch.matmul(wt, w1)
+                ident = Variable(torch.eye(cols, cols))
+                ident = ident.cuda()
 
-    def orth_dist(mat_1, mat_2, stride=None):
-        """
-        this function finds the orthogonality distance between the layers in the model.
-        Params:
-            mat_1: layer 1
-            mat_2: layer 2
-        Returns:
-            orth_dist: orthogonality distance
-        """
-        mat_1 = mat_1.reshape((mat_1.shape[0], -1))
-        if mat_1.shape[0] < mat_1.shape[1]:
-            mat = mat_1.permute(1, 0)
-        orth_dist = torch.norm(torch.t(mat_1) @ mat_2 - torch.eye(mat_1.shape[1]).cuda())
-        return orth_dist
+                w_tmp = (m - ident)
+                height = w_tmp.size(0)
+                u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+                v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+                u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+                sigma = torch.dot(u, torch.matmul(w_tmp, v))
+
+                if l2_reg is None:
+                    l2_reg = (sigma) ** 2
+                else:
+                    l2_reg = l2_reg + (sigma) ** 2
+        return l2_reg
+
+    def adjust_ortho_decay_rate(self,epoch_it):
+        o_d = self.decay
+
+        if epoch_it > 215:
+            o_d = 0.0
+        elif epoch_it > 100:
+            o_d = 1e-6 * o_d
+        elif epoch_it > 60:
+            o_d = 1e-4 * o_d
+        elif epoch_it > 40:
+            o_d = 1e-3 * o_d
+
+        return o_d
