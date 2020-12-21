@@ -52,11 +52,19 @@ class Trainer(BaseTrainer):
         """ Initialize train losses
 
         """
-        self.train_losses = {
-            'loss_all': 0.,
-            'loss_sed': 0.,
-            'loss_doa': 0.
-        }
+        if self.cfg['training']['constraints'] == 'orthogonal':
+            self.train_losses = {
+                'loss_all': 0.,
+                'loss_sed': 0.,
+                'loss_doa': 0.,
+                'loss_orthogonal': 0.
+            }
+        else:
+            self.train_losses = {
+                'loss_all': 0.,
+                'loss_sed': 0.,
+                'loss_doa': 0.
+            }
 
     def train_step(self, batch_sample, epoch_it):
         """ Perform a train step
@@ -74,6 +82,7 @@ class Trainer(BaseTrainer):
             batch_target['sed'] = batch_target['sed'].cuda(non_blocking=True)
             batch_target['doa'] = batch_target['doa'].cuda(non_blocking=True)
 
+
         self.optimizer.zero_grad()
         self.af_extractor.train()
         self.model.train()
@@ -81,14 +90,16 @@ class Trainer(BaseTrainer):
         (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
         batch_x = (batch_x - self.mean) / self.std
         pred = self.model(batch_x)
-        loss_dict = self.losses.calculate(pred, batch_target)
+        loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
         loss_dict[self.cfg['training']['loss_type']].backward()
         self.optimizer.step()
 
         self.train_losses['loss_all'] += loss_dict['all']
         self.train_losses['loss_sed'] += loss_dict['sed']
         self.train_losses['loss_doa'] += loss_dict['doa']
-        
+
+        if self.cfg['training']['constraints'] == 'orthogonal':
+            self.train_losses['loss_orthogonal'] += loss_dict['orthogonal']
 
     def validate_step(self, generator=None, max_batch_num=None, valid_type='train', epoch_it=0):
         """ Perform the validation on the train, valid set
@@ -104,7 +115,7 @@ class Trainer(BaseTrainer):
         elif valid_type == 'valid':
             pred_sed_list, pred_doa_list = [], []
             gt_sed_list, gt_doa_list = [], []
-            loss_all, loss_sed, loss_doa = 0., 0., 0.
+            loss_all, loss_sed, loss_doa, loss_orthogonal  = 0., 0., 0., 0.
 
             for batch_idx, batch_sample in enumerate(generator):
                 if batch_idx == max_batch_num:
@@ -128,11 +139,15 @@ class Trainer(BaseTrainer):
                     (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
                     batch_x = (batch_x - self.mean) / self.std
                     pred = self.model(batch_x)
-                loss_dict = self.losses.calculate(pred, batch_target, epoch_it)
+                loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
                 pred['sed'] = torch.sigmoid(pred['sed'])
                 loss_all += loss_dict['all'].cpu().detach().numpy()
                 loss_sed += loss_dict['sed'].cpu().detach().numpy()
                 loss_doa += loss_dict['doa'].cpu().detach().numpy()
+
+                if self.cfg['training']['constraints'] == 'orthogonal':
+                    loss_orthogonal += loss_dict['orthogonal'].cpu().detach().numpy()
+
                 pred_sed_list.append(pred['sed'].cpu().detach().numpy())
                 pred_doa_list.append(pred['doa'].cpu().detach().numpy())
 
@@ -167,11 +182,21 @@ class Trainer(BaseTrainer):
                 pred_sed.shape[0]*pred_sed.shape[1], label_resolution=self.label_resolution)
             gt_metrics2020_dict = self.gt_metrics2020_dict
 
-            out_losses = {
-                'loss_all': loss_all / (batch_idx + 1),
-                'loss_sed': loss_sed / (batch_idx + 1),
-                'loss_doa': loss_doa / (batch_idx + 1),
-            }
+
+            if self.cfg['training']['constraints'] == 'orthogonal':
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                    'loss_orthogonal': loss_orthogonal / (batch_idx + 1),
+                }
+            else:
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                }
+
 
             pred_dict = {
                 'dcase2019_sed': pred_sed_metrics2019,
