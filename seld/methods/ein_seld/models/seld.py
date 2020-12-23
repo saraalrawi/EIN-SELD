@@ -17,7 +17,7 @@ class EINV2(nn.Module):
 
         self.downsample_ratio = 2 ** 2
         self.sed_conv_block1 = nn.Sequential(
-            DoubleConv(in_channels=4, out_channels=64),
+            DoubleConv(in_channels=self.in_channels, out_channels=64),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.sed_conv_block2 = nn.Sequential(
@@ -87,7 +87,7 @@ class EINV2(nn.Module):
         """
         x: waveform, (batch_size, num_channels, data_length)
         """
-        x_sed = x[:, :4]
+        x_sed = x[:, :]
         x_doa = x
 
         # cnn
