@@ -59,6 +59,13 @@ class Trainer(BaseTrainer):
                 'loss_doa': 0.,
                 'loss_orthogonal': 0.
             }
+        elif self.cfg['training']['layer_constraints'] == 'orthogonal':
+            self.train_losses = {
+                'loss_all': 0.,
+                'loss_sed': 0.,
+                'loss_doa': 0.,
+                'loss_layer_orthogonal': 0.
+            }
         else:
             self.train_losses = {
                 'loss_all': 0.,
@@ -100,6 +107,9 @@ class Trainer(BaseTrainer):
 
         if self.cfg['training']['constraints'] == 'orthogonal':
             self.train_losses['loss_orthogonal'] += loss_dict['orthogonal']
+
+        if self.cfg['training']['layer_constraints'] == 'orthogonal':
+            self.train_losses['loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
 
     def validate_step(self, generator=None, max_batch_num=None, valid_type='train', epoch_it=0):
         """ Perform the validation on the train, valid set
@@ -148,6 +158,9 @@ class Trainer(BaseTrainer):
                 if self.cfg['training']['constraints'] == 'orthogonal':
                     loss_orthogonal += loss_dict['orthogonal'].cpu().detach().numpy()
 
+                if self.cfg['training']['layer_constraints'] == 'orthogonal':
+                    loss_orthogonal += loss_dict['loss_layer_orthogonal'].cpu().detach().numpy()
+
                 pred_sed_list.append(pred['sed'].cpu().detach().numpy())
                 pred_doa_list.append(pred['doa'].cpu().detach().numpy())
 
@@ -189,6 +202,13 @@ class Trainer(BaseTrainer):
                     'loss_sed': loss_sed / (batch_idx + 1),
                     'loss_doa': loss_doa / (batch_idx + 1),
                     'loss_orthogonal': loss_orthogonal / (batch_idx + 1),
+                }
+            elif self.cfg['training']['layer_constraints'] == 'orthogonal':
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                    'loss_layer_orthogonal': loss_orthogonal / (batch_idx + 1),
                 }
             else:
                 out_losses = {
