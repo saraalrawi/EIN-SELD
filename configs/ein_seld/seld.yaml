@@ -27,7 +27,8 @@ training:
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  constraints: orthogonal # currently only one constraint
+  constraints: None # orthogonal currently only one constraint
+  layer_constraints: orthogonal # None
   orthogonal_decay: 1e-6 # orthogonality weight decay
   batch_size: 32
   train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
