@@ -26,8 +26,19 @@ class Losses:
             loss_doa = self.losses[1].calculate_loss(pred['doa'], updated_target['doa'])
         elif self.cfg['training']['PIT_type'] == 'tPIT':
             loss_sed, loss_doa, updated_target = self.tPIT(pred, target)
-            if self.cfg['training']['constraints'] == 'orthogonal':
-                loss_orthogonal = self.orthogonal_distance(model)
+            #if self.cfg['training']['constraints'] == 'orthogonal':
+            #    loss_orthogonal = self.orthogonal_distance(model)
+            if self.cfg['training']['layer_constraints'] == 'orthogonal':
+                loss_orthogonal_layer = self.orthogonal_layer_distance(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block1[0].double_conv[3].weight,model.module.doa_conv_block1[0].double_conv[3].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block2[0].double_conv[0].weight,model.module.doa_conv_block2[0].double_conv[0].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block2[0].double_conv[3].weight,model.module.doa_conv_block2[0].double_conv[3].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block3[0].double_conv[0].weight,model.module.doa_conv_block3[0].double_conv[0].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block3[0].double_conv[3].weight,model.module.doa_conv_block3[0].double_conv[3].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block4[0].double_conv[0].weight,model.module.doa_conv_block4[0].double_conv[0].weight) \
+                                  + self.orthogonal_layer_distance(model.module.sed_conv_block4[0].double_conv[3].weight,model.module.doa_conv_block4[0].double_conv[3].weight)
+
+        '''
         if self.cfg['training']['constraints'] == 'orthogonal':
             orthogonal_constraint_loss = self.adjust_ortho_decay_rate(epoch_it + 1) * loss_orthogonal
             loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
@@ -37,6 +48,18 @@ class Losses:
                 'sed': loss_sed,
                 'doa': loss_doa,
                 'orthogonal': orthogonal_constraint_loss,
+                'updated_target': updated_target
+                }
+        '''
+        if self.cfg['training']['layer_constraints'] == 'orthogonal':
+            orthogonal_layer_constraint_loss = self.adjust_ortho_decay_rate(epoch_it + 1) * loss_orthogonal_layer
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_layer_constraint_loss
+
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'loss_layer_orthogonal': orthogonal_layer_constraint_loss,
                 'updated_target': updated_target
             }
         else:
@@ -120,6 +143,31 @@ class Losses:
                     l2_reg = (sigma) ** 2
                 else:
                     l2_reg = l2_reg + (sigma) ** 2
+        return l2_reg
+
+    def orthogonal_layer_distance(self,sed_layer ,doa_layer):
+        #l2_reg = None
+
+        cols = sed_layer[0].numel()
+        cols_doa = doa_layer[0].numel()
+        rows = sed_layer.shape[0]
+        w1 = sed_layer.view(-1, cols)
+        w2 = doa_layer.view(-1, cols_doa)
+        wt = torch.transpose(w2, 0, 1)
+        m = torch.matmul(wt, w1)
+        ident = Variable(torch.eye(cols, cols))
+        ident = ident.cuda()
+
+        w_tmp = (m - ident)
+        height = w_tmp.size(0)
+        u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+        v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+        u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+        sigma = torch.dot(u, torch.matmul(w_tmp, v))
+
+
+        l2_reg = (sigma) ** 2
+
         return l2_reg
 
     def adjust_ortho_decay_rate(self,epoch_it):
