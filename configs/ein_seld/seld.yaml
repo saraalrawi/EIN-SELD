@@ -41,6 +41,7 @@ training:
   max_epoch: 215
   threshold_sed: 0.5
   remark: None
+  invert_position_aug: True  # Whether to use inverse position augmentation or not
 inference:
   infer_id: EINV2_tPIT_n1
   testset_type: eval # dev | eval

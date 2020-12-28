@@ -240,6 +240,13 @@ class UserDataset(Dataset):
                     sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
                     doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
         if 'test' not in self.dataset_type:
+
+            if self.cfg['training']['invert_position_aug']:
+                if np.random.random() > 0.5:
+                    x = np.flip(x)
+                    doa_label = 0.0 - doa_label
+
+
             sample = {
                 'filename': fn,
                 'data_type': self.dataset_type,
