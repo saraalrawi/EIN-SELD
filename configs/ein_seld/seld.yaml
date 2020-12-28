@@ -42,6 +42,7 @@ training:
   threshold_sed: 0.5
   remark: None
   invert_position_aug: True  # Whether to use inverse position augmentation or not
+  smoothness_loss: True  # Whether to use a smoothness loss for the doa predictions
 inference:
   infer_id: EINV2_tPIT_n1
   testset_type: eval # dev | eval

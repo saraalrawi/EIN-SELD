@@ -108,6 +108,25 @@ class Losses:
 
         loss_sed = (loss_sed1 * (loss1 <= loss2) + loss_sed2 * (loss1 > loss2)).mean()
         loss_doa = (loss_doa1 * (loss1 <= loss2) + loss_doa2 * (loss1 > loss2)).mean()
+
+        if self.cfg['training']['smoothness_loss']:
+            smoothness_threshold = 1.0
+            doa_array = pred['doa']
+
+            # 1st derivative
+            d_doa_array_dt = doa_array[:, 1:, :, :] - doa_array[:, :-1, :, :]
+
+            # 2nd derivative
+            d2_doa_array_dt2 = d_doa_array_dt[:, 1:, :, :] - d_doa_array_dt[:, :-1, :, :]
+
+            # ignore non-significant non-smoothness
+            d2_doa_array_dt2 = torch.where(d2_doa_array_dt2 < smoothness_threshold,
+                                           torch.zeros_like(d2_doa_array_dt2), d2_doa_array_dt2)
+
+            # actuall loss is MSE of d2_doa_array_dt2
+            loss_doa_smoothness = (d2_doa_array_dt2 ** 2).mean()
+
+
         updated_target_sed = target['sed'].clone() * (loss1[:, :, None, None] <= loss2[:, :, None, None]) + \
             target_flipped['sed'].clone() * (loss1[:, :, None, None] > loss2[:, :, None, None])
         updated_target_doa = target['doa'].clone() * (loss1[:, :, None, None] <= loss2[:, :, None, None]) + \
