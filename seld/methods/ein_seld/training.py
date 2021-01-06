@@ -52,19 +52,34 @@ class Trainer(BaseTrainer):
         """ Initialize train losses
 
         """
-        if self.cfg['training']['constraints'] == 'orthogonal':
+        if self.cfg['training']['weight_constraints'] == 'orthogonal':
             self.train_losses = {
                 'loss_all': 0.,
                 'loss_sed': 0.,
                 'loss_doa': 0.,
-                'loss_orthogonal': 0.
+                'loss_weight_orthogonal': 0.
             }
+        elif self.cfg['training']['weight_constraints_1'] == 'orthogonal':
+            self.train_losses = {
+                'loss_all': 0.,
+                'loss_sed': 0.,
+                'loss_doa': 0.,
+                'loss_weight_orthogonal_1': 0.
+            }
+
         elif self.cfg['training']['layer_constraints'] == 'orthogonal':
             self.train_losses = {
                 'loss_all': 0.,
                 'loss_sed': 0.,
                 'loss_doa': 0.,
                 'loss_layer_orthogonal': 0.
+            }
+        elif self.cfg['training']['layer_constraints_1'] == 'orthogonal':
+            self.train_losses = {
+                'loss_all': 0.,
+                'loss_sed': 0.,
+                'loss_doa': 0.,
+                'loss_layer_orthogonal_1': 0.
             }
         else:
             self.train_losses = {
@@ -105,11 +120,17 @@ class Trainer(BaseTrainer):
         self.train_losses['loss_sed'] += loss_dict['sed']
         self.train_losses['loss_doa'] += loss_dict['doa']
 
-        if self.cfg['training']['constraints'] == 'orthogonal':
-            self.train_losses['loss_orthogonal'] += loss_dict['orthogonal']
+        if self.cfg['training']['weight_constraints'] == 'orthogonal':
+            self.train_losses['loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal']
+
+        if self.cfg['training']['weight_constraints_1'] == 'orthogonal':
+            self.train_losses['loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1']
 
         if self.cfg['training']['layer_constraints'] == 'orthogonal':
             self.train_losses['loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
+
+        if self.cfg['training']['layer_constraints_1'] == 'orthogonal':
+            self.train_losses['loss_layer_orthogonal_1'] += loss_dict['loss_layer_orthogonal_1']
 
     def validate_step(self, generator=None, max_batch_num=None, valid_type='train', epoch_it=0):
         """ Perform the validation on the train, valid set
@@ -155,11 +176,18 @@ class Trainer(BaseTrainer):
                 loss_sed += loss_dict['sed'].cpu().detach().numpy()
                 loss_doa += loss_dict['doa'].cpu().detach().numpy()
 
-                if self.cfg['training']['constraints'] == 'orthogonal':
-                    loss_orthogonal += loss_dict['orthogonal'].cpu().detach().numpy()
+                if self.cfg['training']['weight_constraints'] == 'orthogonal':
+                    loss_orthogonal += loss_dict['loss_weight_orthogonal'].cpu().detach().numpy()
 
                 if self.cfg['training']['layer_constraints'] == 'orthogonal':
                     loss_orthogonal += loss_dict['loss_layer_orthogonal'].cpu().detach().numpy()
+
+                if self.cfg['training']['weight_constraints_1'] == 'orthogonal':
+                    loss_orthogonal += loss_dict['loss_weight_orthogonal_1'].cpu().detach().numpy()
+
+                if self.cfg['training']['layer_constraints_1'] == 'orthogonal':
+                    loss_orthogonal += loss_dict['loss_layer_orthogonal_1'].cpu().detach().numpy()
+
 
                 pred_sed_list.append(pred['sed'].cpu().detach().numpy())
                 pred_doa_list.append(pred['doa'].cpu().detach().numpy())
@@ -196,7 +224,7 @@ class Trainer(BaseTrainer):
             gt_metrics2020_dict = self.gt_metrics2020_dict
 
 
-            if self.cfg['training']['constraints'] == 'orthogonal':
+            if self.cfg['training']['weight_constraints'] == 'orthogonal':
                 out_losses = {
                     'loss_all': loss_all / (batch_idx + 1),
                     'loss_sed': loss_sed / (batch_idx + 1),
@@ -209,6 +237,20 @@ class Trainer(BaseTrainer):
                     'loss_sed': loss_sed / (batch_idx + 1),
                     'loss_doa': loss_doa / (batch_idx + 1),
                     'loss_layer_orthogonal': loss_orthogonal / (batch_idx + 1),
+                }
+            elif self.cfg['training']['weight_constraints_1'] == 'orthogonal':
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                    'loss_orthogonal_1': loss_orthogonal / (batch_idx + 1),
+                }
+            elif self.cfg['training']['layer_constraints_1'] == 'orthogonal':
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                    'loss_layer_orthogonal_1': loss_orthogonal / (batch_idx + 1),
                 }
             else:
                 out_losses = {
