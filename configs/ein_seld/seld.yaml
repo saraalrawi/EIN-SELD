@@ -27,9 +27,7 @@ training:
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  constraints: None # orthogonal currently only one constraint
-  layer_constraints: orthogonal # None
-  orthogonal_decay: 1e-6 # orthogonality weight decay
+  weight_sharing: stitching #attention_residual
   batch_size: 32
   train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
   valid_fold: 1
@@ -41,6 +39,14 @@ training:
   max_epoch: 215
   threshold_sed: 0.5
   remark: None
+  weight_constraints: None # orthogonal - kernel orthogonality
+  layer_constraints: None # orthogonal - kernel orthogonality between the sed and doa branches
+  orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
+  weight_constraints_1: None # orthogonal conv weight
+  layer_constraints_1: orthogonal # orthogonal conv weight between the sed and doa branches
+  r: 0.1   # 1e-3 1e-5 conv orthogonality weight penalty
+  invert_position_aug: False  # Whether to use inverse position augmentation or not
+  smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
 inference:
   infer_id: EINV2_tPIT_n1
   testset_type: eval # dev | eval
