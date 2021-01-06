@@ -91,3 +91,125 @@ class PositionalEncoding(nn.Module):
             x += self.pe[:, :, :x.shape[2]]
         return self.dropout(x)
 
+class Deconv(nn.Module):
+    def __init__(self, inplanes, planes):
+        super(Deconv, self).__init__()
+        self.deconv = nn.ConvTranspose2d(inplanes, planes, 3, stride=2, padding=1, output_padding=1)
+        self.bn = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU()
+
+    def forward(self, x, is_last=False):
+        x = self.deconv(x)
+        if not is_last:
+            x = self.bn(x)
+            x = self.relu(x)
+        return x
+
+# Equivelent to function residual_unit in
+# https://github.com/deontaepharr/Residual-Attention-Network/blob/master/Code/ResidualAttentionNetwork.py
+class BottleNeck(nn.Module):
+
+    def __init__(self, inplanes, planes):
+        super(BottleNeck, self).__init__()
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False) # change
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, # change
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(planes * 4)
+        self.relu = nn.ReLU(inplace=True)
+
+    def forward(self, x):
+        residual = x
+        # Layer #1
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+        # Layer #2
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        # Layer #3
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+class Downsampler(nn.Module):
+    def __init__(self):
+        super(Downsampler, self).__init__()
+        self.pool1 = nn.MaxPool2d(kernel_size=2, stride=2, return_indices=True)
+
+    def forward(self, x):
+        out, index = self.pool1(x)
+        return out
+
+class LambdaLayer(nn.Module):
+    def __init__(self, lambd):
+        super(LambdaLayer, self).__init__()
+        self.lambd = lambd
+
+    def forward(self, x):
+        return self.lambd(x)
+
+class AttentionModule(nn.Module):
+    def __init__(self, inplanes, planes):
+        super(AttentionModule, self).__init__()
+        self.bottleneck1_1 = BottleNeck(inplanes, planes/4)
+        self.bottleneck1_2 = BottleNeck(inplanes, planes/4)
+        self.downsampler1 = Downsampler()
+        self.bottleneck2_1 = BottleNeck(inplanes, planes/4)
+        self.downsampler2 = Downsampler()
+        self.bottleneck2_2 = BottleNeck(inplanes, planes/4)
+        self.bottleneck2_3 = BottleNeck(inplanes, planes/4)
+        self.deconv1 = Deconv(inplanes, planes)
+        self.bottleneck2_4 = BottleNeck(inplanes, planes/4)
+        self.deconv2 = Deconv(inplanes, planes)
+        self.conv2_1 = nn.Conv2d(inplanes, planes, 1)
+        self.conv2_2 = nn.Conv2d(inplanes, planes, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # trunk branch
+        x_1 = self.bottleneck1_1(x)
+        x_1 = self.bottleneck1_2(x_1)
+
+        # mask branch
+        x_2 = self.downsampler1(x)
+        # Perform residual units r
+        x_2 = self.bottleneck2_1(x_2)
+        x_2 = self.downsampler2(x_2)
+        # Perform Middle Residuals - Perform 2*r
+        x_2 = self.bottleneck2_2(x_2)
+        x_2 = self.bottleneck2_3(x_2)
+        # Upsampling Step Initialization - Top
+        x_2 = self.deconv1(x_2)
+        x_2 = self.bottleneck2_4(x_2)
+        # Last interpolation step - Bottom
+        x_2 = self.deconv2(x_2)
+        # Conv 1
+        x_2 = self.conv2_1(x_2)
+        #  Conv 2
+        x_2 = self.conv2_2(x_2)
+        # Sigmoid
+        x_2 = self.sigmoid(x_2)
+
+
+        #x = x_1 * x_2
+        #x = x + x_1
+        x = self.attention_residual_learning(x_1, x_2)
+        return x_1, x
+
+
+
+    def attention_residual_learning(self, mask_input, trunk_input):
+        # https://stackoverflow.com/a/53361303/9221241
+        Mx = LambdaLayer(lambda x: 1 + x)(mask_input) # 1 + mask
+        return torch.mm(Mx, trunk_input) # M(x) * T(x)
+
+
