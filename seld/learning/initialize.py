@@ -10,7 +10,6 @@ import torch.optim as optim
 from torch.backends import cudnn
 from torch.utils.tensorboard import SummaryWriter
 from utils.common import create_logging
-#import wandb
 from utils.config import (get_afextractor, get_generator, get_losses,
                           get_metrics, get_models, get_optimizer, get_trainer,
                           store_config)
@@ -41,7 +40,7 @@ def init_train(args, cfg, dataset):
     '''Directories'''
     print('Train ID is {}\n'.format(cfg['training']['train_id']))
     stamp = datetime.now().strftime('%b%d_%H-%M-%S')
-    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_aug_'+ str(stamp)+ str(cfg['data']['type'])) \
+    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_conv_layer_orth_constraint_' + str(args.r) + '_' + str(stamp)+ str(cfg['data']['type'])) \
         .joinpath(cfg['method']).joinpath(cfg['training']['train_id'])
     if out_train_dir.is_dir():
         flag = input("Train ID folder {} is existed, delete it? (y/n)". \
@@ -75,7 +74,7 @@ def init_train(args, cfg, dataset):
     ''' Data Augmentation '''
 
     '''Loss'''
-    losses = get_losses(cfg)
+    losses = get_losses(cfg,args)
 
     '''Metrics'''
     metrics = get_metrics(cfg, dataset)
@@ -130,6 +129,13 @@ def init_train(args, cfg, dataset):
     if cfg['training']['loss_type'] == 'doa':
         logging.info('DOA loss type is: {}\n'.format(cfg['training']['doa_loss_type']))
     logging.info('Data augmentation methods used are: {}\n'.format(cfg['data_augmentation']['type']))
+    logging.info('Constraints used are weight_constraints, '
+                 'layer_constraints,'
+                 'weight_constraints_1,'
+                 'layer_constraints_1  : {} {} {} {} \n'.format(cfg['training']['weight_constraints'],
+                                                               cfg['training']['layer_constraints'],
+                                                               cfg['training']['weight_constraints_1'],
+                                                               cfg['training']['layer_constraints_1']))
 
     train_initializer = {
         'writer': writer,
