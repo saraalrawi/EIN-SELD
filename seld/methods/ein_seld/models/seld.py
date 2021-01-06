@@ -89,7 +89,7 @@ class EINV2(nn.Module):
         """
         x_sed = x[:, :]
         x_doa = x
-
+        '''
         # cnn
         x_sed = self.sed_conv_block1(x_sed)
         x_doa = self.doa_conv_block1(x_doa)
@@ -134,6 +134,69 @@ class EINV2(nn.Module):
         x_doa_1 = self.final_act_doa(self.fc_doa_track1(x_doa_1))
         x_doa_2 = self.final_act_doa(self.fc_doa_track2(x_doa_2))
         x_doa = torch.stack((x_doa_1, x_doa_2), 2)
+        '''
+        ##################################################################################
+        # No stitching
+
+        # cnn
+        x_sed_feat_1 = self.sed_conv_block1(x_sed)
+        x_doa_feat_1 = self.doa_conv_block1(x_doa)
+        if self.cfg['training']['weight_sharing'] == 'stitching':
+            x_sed_feat_1 = torch.einsum('c, nctf -> nctf', self.stitch[0][:, 0, 0], x_sed_feat_1) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[0][:, 0, 1], x_doa_feat_1)
+            x_doa_feat_1 = torch.einsum('c, nctf -> nctf', self.stitch[0][:, 1, 0], x_sed_feat_1) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[0][:, 1, 1], x_doa_feat_1)
+        else:
+            pass
+
+        x_sed_feat_2 = self.sed_conv_block2(x_sed_feat_1)
+        x_doa_feat_2 = self.doa_conv_block2(x_doa_feat_1)
+
+        if self.cfg['training']['weight_sharing'] == 'stitching':
+            x_sed_feat_2 = torch.einsum('c, nctf -> nctf', self.stitch[1][:, 0, 0], x_sed_feat_2) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[1][:, 0, 1], x_doa_feat_2)
+            x_doa_feat_2 = torch.einsum('c, nctf -> nctf', self.stitch[1][:, 1, 0], x_sed_feat_2) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[1][:, 1, 1], x_doa_feat_2)
+        else:
+            pass
+        x_sed_feat_3 = self.sed_conv_block3(x_sed_feat_2)
+        x_doa_feat_3 = self.doa_conv_block3(x_doa_feat_2)
+
+        if self.cfg['training']['weight_sharing'] == 'stitching':
+            x_sed_feat_3 = torch.einsum('c, nctf -> nctf', self.stitch[2][:, 0, 0], x_sed_feat_3) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[2][:, 0, 1], x_doa_feat_3)
+            x_doa_feat_3 = torch.einsum('c, nctf -> nctf', self.stitch[2][:, 1, 0], x_sed_feat_3) + \
+                           torch.einsum('c, nctf -> nctf', self.stitch[2][:, 1, 1], x_doa_feat_3)
+        else:
+            pass
+
+        x_sed_feat_4 = self.sed_conv_block3(x_sed_feat_3)
+        x_doa_feat_4 = self.doa_conv_block3(x_doa_feat_3)
+
+        x_sed = x_sed_feat_4.mean(dim=3)  # (N, C, T)
+        x_doa = x_doa_feat_4.mean(dim=3)  # (N, C, T)
+
+        # transformer
+        if self.pe_enable:
+            x_sed = self.pe(x_sed)
+        if self.pe_enable:
+            x_doa = self.pe(x_sed)
+        x_sed = x_sed.permute(2, 0, 1)  # (T, N, C)
+        x_doa = x_doa.permute(2, 0, 1)  # (T, N, C)
+
+        x_sed_1 = self.sed_trans_track1(x_sed).transpose(0, 1)  # (N, T, C)
+        x_sed_2 = self.sed_trans_track2(x_sed).transpose(0, 1)  # (N, T, C)
+        x_doa_1 = self.doa_trans_track1(x_doa).transpose(0, 1)  # (N, T, C)
+        x_doa_2 = self.doa_trans_track2(x_doa).transpose(0, 1)  # (N, T, C)
+
+        # fc
+        x_sed_1 = self.final_act_sed(self.fc_sed_track1(x_sed_1))
+        x_sed_2 = self.final_act_sed(self.fc_sed_track2(x_sed_2))
+        x_sed = torch.stack((x_sed_1, x_sed_2), 2)
+        x_doa_1 = self.final_act_doa(self.fc_doa_track1(x_doa_1))
+        x_doa_2 = self.final_act_doa(self.fc_doa_track2(x_doa_2))
+        x_doa = torch.stack((x_doa_1, x_doa_2), 2)
+
         output = {
             'sed': x_sed,
             'doa': x_doa,
