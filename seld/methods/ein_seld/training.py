@@ -1,13 +1,13 @@
 import random
 from itertools import combinations
 from pathlib import Path
+import torch.nn as nn
 
 import h5py
 import numpy as np
 import torch
 from methods.training import BaseTrainer
 from methods.utils.data_utilities import to_metrics2020_format
-
 
 class Trainer(BaseTrainer):
 
@@ -54,38 +54,45 @@ class Trainer(BaseTrainer):
         """
         if self.cfg['training']['weight_constraints'] == 'orthogonal':
             self.train_losses = {
-                'loss_all': 0.,
-                'loss_sed': 0.,
-                'loss_doa': 0.,
-                'loss_weight_orthogonal': 0.
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.,
+                'train_loss_weight_orthogonal': 0.
             }
         elif self.cfg['training']['weight_constraints_1'] == 'orthogonal':
             self.train_losses = {
-                'loss_all': 0.,
-                'loss_sed': 0.,
-                'loss_doa': 0.,
-                'loss_weight_orthogonal_1': 0.
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.,
+                'train_loss_weight_orthogonal_1': 0.
             }
 
         elif self.cfg['training']['layer_constraints'] == 'orthogonal':
             self.train_losses = {
-                'loss_all': 0.,
-                'loss_sed': 0.,
-                'loss_doa': 0.,
-                'loss_layer_orthogonal': 0.
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.,
+                'train_loss_layer_orthogonal': 0.
             }
         elif self.cfg['training']['layer_constraints_1'] == 'orthogonal':
             self.train_losses = {
-                'loss_all': 0.,
-                'loss_sed': 0.,
-                'loss_doa': 0.,
-                'loss_layer_orthogonal_1': 0.
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.,
+                'train_loss_layer_orthogonal_1': 0.
+            }
+        elif self.cfg['training']['smoothness_loss']:
+            self.train_losses = {
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.,
+                'train_loss_doa_smoothness': 0.
             }
         else:
             self.train_losses = {
-                'loss_all': 0.,
-                'loss_sed': 0.,
-                'loss_doa': 0.
+                'train_loss_all': 0.,
+                'train_loss_sed': 0.,
+                'train_loss_doa': 0.
             }
 
     def train_step(self, batch_sample, epoch_it):
@@ -112,25 +119,34 @@ class Trainer(BaseTrainer):
         (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
         batch_x = (batch_x - self.mean) / self.std
         pred = self.model(batch_x)
-        loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
+
+        #if self.cfg['training']['model'] != 'EINV2':
+        #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
+        #    pred['sed'] = conv_layer.cuda()(pred['sed'])
+        #    pred['doa'] = conv_layer.cuda()(pred['doa'])
+
+        loss_dict = self.losses.calculate(pred, batch_target, epoch_it,self.model)
         loss_dict[self.cfg['training']['loss_type']].backward()
         self.optimizer.step()
 
-        self.train_losses['loss_all'] += loss_dict['all']
-        self.train_losses['loss_sed'] += loss_dict['sed']
-        self.train_losses['loss_doa'] += loss_dict['doa']
+        self.train_losses['train_loss_all'] += loss_dict['all']
+        self.train_losses['train_loss_sed'] += loss_dict['sed']
+        self.train_losses['train_loss_doa'] += loss_dict['doa']
 
         if self.cfg['training']['weight_constraints'] == 'orthogonal':
-            self.train_losses['loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal']
+            self.train_losses['train_loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal']
 
         if self.cfg['training']['weight_constraints_1'] == 'orthogonal':
-            self.train_losses['loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1']
+            self.train_losses['train_loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1']
 
         if self.cfg['training']['layer_constraints'] == 'orthogonal':
-            self.train_losses['loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
+            self.train_losses['train_loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
 
         if self.cfg['training']['layer_constraints_1'] == 'orthogonal':
-            self.train_losses['loss_layer_orthogonal_1'] += loss_dict['loss_layer_orthogonal_1']
+            self.train_losses['train_loss_layer_orthogonal_1'] += loss_dict['loss_layer_orthogonal_1']
+
+        if self.cfg['training']['smoothness_loss']:
+            self.train_losses['train_loss_doa_smoothness'] += loss_dict['loss_doa_smoothness']
 
     def validate_step(self, generator=None, max_batch_num=None, valid_type='train', epoch_it=0):
         """ Perform the validation on the train, valid set
@@ -146,7 +162,7 @@ class Trainer(BaseTrainer):
         elif valid_type == 'valid':
             pred_sed_list, pred_doa_list = [], []
             gt_sed_list, gt_doa_list = [], []
-            loss_all, loss_sed, loss_doa, loss_orthogonal  = 0., 0., 0., 0.
+            loss_all, loss_sed, loss_doa, loss_orthogonal , loss_doa_smoothness = 0., 0., 0., 0., 0.
 
             for batch_idx, batch_sample in enumerate(generator):
                 if batch_idx == max_batch_num:
@@ -170,6 +186,13 @@ class Trainer(BaseTrainer):
                     (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
                     batch_x = (batch_x - self.mean) / self.std
                     pred = self.model(batch_x)
+
+                    #if self.cfg['training']['model'] != 'EINV2':
+                    #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
+                    #    pred['sed'] = conv_layer.cuda()(pred['sed'])
+                    #    pred['doa'] = conv_layer.cuda()(pred['doa'])
+
+
                 loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
                 pred['sed'] = torch.sigmoid(pred['sed'])
                 loss_all += loss_dict['all'].cpu().detach().numpy()
@@ -188,6 +211,14 @@ class Trainer(BaseTrainer):
                 if self.cfg['training']['layer_constraints_1'] == 'orthogonal':
                     loss_orthogonal += loss_dict['loss_layer_orthogonal_1'].cpu().detach().numpy()
 
+                if self.cfg['training']['smoothness_loss']:
+                    loss_doa_smoothness += loss_dict['loss_doa_smoothness'].cpu().detach().numpy()
+
+
+                #if self.cfg['training']['model'] != 'EINV2':
+                #    deconv_layer = nn.ConvTranspose2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
+                #    pred['sed'] = deconv_layer.cuda()(pred['sed'])
+                #    pred['doa'] = deconv_layer.cuda()(pred['doa'])
 
                 pred_sed_list.append(pred['sed'].cpu().detach().numpy())
                 pred_doa_list.append(pred['doa'].cpu().detach().numpy())
@@ -252,6 +283,14 @@ class Trainer(BaseTrainer):
                     'loss_doa': loss_doa / (batch_idx + 1),
                     'loss_layer_orthogonal_1': loss_orthogonal / (batch_idx + 1),
                 }
+            elif self.cfg['training']['smoothness_loss']:
+                out_losses = {
+                    'loss_all': loss_all / (batch_idx + 1),
+                    'loss_sed': loss_sed / (batch_idx + 1),
+                    'loss_doa': loss_doa / (batch_idx + 1),
+                    'loss_doa_smoothness': loss_doa_smoothness / (batch_idx + 1),
+                }
+
             else:
                 out_losses = {
                     'loss_all': loss_all / (batch_idx + 1),
