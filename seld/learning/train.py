@@ -6,14 +6,12 @@ from tqdm import tqdm
 from utils.common import print_metrics
 import wandb
 
-
 def train(cfg, **initializer):
     """Train
 
     """
     dict_cofig = cfg
     run = wandb.init(project="ein-2021", config=dict_cofig , entity='newseld')
-    #run = wandb.init(project="ein-2021", config=dict_cofig , entity='newseld')
     #wandb.save("./*.pth", base_path="./")
     #run.save()
     writer = initializer['writer']
@@ -44,7 +42,8 @@ def train(cfg, **initializer):
             train_losses = trainer.validate_step(valid_type='train', epoch_it=epoch_it)
             for k, v in train_losses.items():
                 train_losses[k] = v / batchNum_per_epoch
-                #wandb.log({k: v / batchNum_per_epoch})
+                wandb.log({k: v / batchNum_per_epoch})
+                wandb.log({k: v / batchNum_per_epoch})
             if cfg['training']['valid_fold']:
                 valid_losses, valid_metrics = trainer.validate_step(
                     generator=valid_generator,
@@ -55,7 +54,9 @@ def train(cfg, **initializer):
 
 
             for k, v in valid_losses.items():
+
                 wandb.log({k: v })
+
 
             wandb.log({'Er20': valid_metrics['ER20'] })
             wandb.log({'F20': valid_metrics['F20'] })
@@ -68,8 +69,6 @@ def train(cfg, **initializer):
             wandb.log({'LE19': valid_metrics['LE19'] })
             wandb.log({'LR19': valid_metrics['LR19'] })
             wandb.log({'seld19': valid_metrics['seld19'] })
-
-
 
             writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
             logging.info('---------------------------------------------------------------------------------------------------'
@@ -113,6 +112,5 @@ def train(cfg, **initializer):
         if rem_batch == 0 and it > 0:
             lr_scheduler.step()
         it += 1
-        
     iterator.close()
 
