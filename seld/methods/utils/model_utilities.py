@@ -160,15 +160,15 @@ class LambdaLayer(nn.Module):
 class AttentionModule(nn.Module):
     def __init__(self, inplanes, planes):
         super(AttentionModule, self).__init__()
-        self.bottleneck1_1 = BottleNeck(inplanes, planes/4)
-        self.bottleneck1_2 = BottleNeck(inplanes, planes/4)
+        self.bottleneck1_1 = BottleNeck(inplanes, planes //4)
+        self.bottleneck1_2 = BottleNeck(inplanes, planes //4)
         self.downsampler1 = Downsampler()
-        self.bottleneck2_1 = BottleNeck(inplanes, planes/4)
+        self.bottleneck2_1 = BottleNeck(inplanes, planes //4)
         self.downsampler2 = Downsampler()
-        self.bottleneck2_2 = BottleNeck(inplanes, planes/4)
-        self.bottleneck2_3 = BottleNeck(inplanes, planes/4)
+        self.bottleneck2_2 = BottleNeck(inplanes, planes //4)
+        self.bottleneck2_3 = BottleNeck(inplanes, planes //4)
         self.deconv1 = Deconv(inplanes, planes)
-        self.bottleneck2_4 = BottleNeck(inplanes, planes/4)
+        self.bottleneck2_4 = BottleNeck(inplanes, planes //4)
         self.deconv2 = Deconv(inplanes, planes)
         self.conv2_1 = nn.Conv2d(inplanes, planes, 1)
         self.conv2_2 = nn.Conv2d(inplanes, planes, 1)
@@ -202,14 +202,15 @@ class AttentionModule(nn.Module):
 
         #x = x_1 * x_2
         #x = x + x_1
+        # x_1
         x = self.attention_residual_learning(x_1, x_2)
-        return x_1, x
+        return  x
 
 
 
     def attention_residual_learning(self, mask_input, trunk_input):
         # https://stackoverflow.com/a/53361303/9221241
         Mx = LambdaLayer(lambda x: 1 + x)(mask_input) # 1 + mask
-        return torch.mm(Mx, trunk_input) # M(x) * T(x)
+        return (Mx * trunk_input) # M(x) * T(x)
 
 
