@@ -22,13 +22,13 @@ data_augmentation:
   type: None # train_spec_aug train_rotate_channel, pitchshift
 training:
   train_id: EINV2_tPIT_n1
-  model: EINV2
+  model: SELD_ATT #EINV2  # SELD_ATT
   resume_model:  # None_epoch_latest.pth
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  weight_sharing: stitching #attention_residual
-  batch_size: 32
+  weight_sharing: None  #stitching, attention_residual
+  batch_size: 16
   train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
   valid_fold: 1
   overlap: 1&2
@@ -43,7 +43,7 @@ training:
   layer_constraints: None # orthogonal - kernel orthogonality between the sed and doa branches
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
   weight_constraints_1: None # orthogonal conv weight
-  layer_constraints_1: orthogonal # orthogonal conv weight between the sed and doa branches
+  layer_constraints_1: None # orthogonal conv weight between the sed and doa branches
   r: 0.1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
   smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
@@ -53,7 +53,7 @@ inference:
   test_fold: None
   overlap: 1&2
   train_ids: EINV2_tPIT_n1
-  models: EINV2
+  models: SELD_ATT  # EINV2  SELD_ATT
   batch_size: 64
   threshold_sed: 0.5
   remark: None
