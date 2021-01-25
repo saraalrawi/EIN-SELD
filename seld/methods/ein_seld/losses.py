@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.nn.functional import normalize
 from torch.autograd import Variable
 from methods.utils.loss_utilities import BCEWithLogitsLoss, MSELoss
@@ -29,17 +30,7 @@ class Losses:
             loss_sed, loss_doa, updated_target, loss_doa_smoothness = self.tPIT(pred, target)
             if self.cfg['training']['weight_constraints'] == 'orthogonal':
                 loss_orthogonal = self.orthogonal_distance(model)
-            '''
-            if self.cfg['training']['layer_constraints'] == 'orthogonal':
-                loss_orthogonal_layer = self.orthogonal_layer_distance(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block1[0].double_conv[3].weight,model.module.doa_conv_block1[0].double_conv[3].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block2[0].double_conv[0].weight,model.module.doa_conv_block2[0].double_conv[0].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block2[0].double_conv[3].weight,model.module.doa_conv_block2[0].double_conv[3].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block3[0].double_conv[0].weight,model.module.doa_conv_block3[0].double_conv[0].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block3[0].double_conv[3].weight,model.module.doa_conv_block3[0].double_conv[3].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block4[0].double_conv[0].weight,model.module.doa_conv_block4[0].double_conv[0].weight) \
-                                  + self.orthogonal_layer_distance(model.module.sed_conv_block4[0].double_conv[3].weight,model.module.doa_conv_block4[0].double_conv[3].weight)
-            '''
+
             # stronger weight orthogonality
             if self.cfg['training']['weight_constraints_1'] == 'orthogonal':
                 loss_orthogonal = self.orth_dist(model.module.sed_conv_block1[0].double_conv[0].weight) \
@@ -109,19 +100,6 @@ class Losses:
                 'loss_weight_orthogonal': orthogonal_constraint_loss,
                 'updated_target': updated_target
                 }
-            ''' 
-            if self.cfg['training']['layer_constraints'] == 'orthogonal':
-                orthogonal_layer_constraint_loss = self.adjust_ortho_decay_rate(epoch_it + 1) * loss_orthogonal_layer
-                loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_layer_constraint_loss
-
-                losses_dict = {
-                    'all': loss_all,
-                    'sed': loss_sed,
-                    'doa': loss_doa,
-                    'loss_layer_orthogonal': orthogonal_layer_constraint_loss,
-                    'updated_target': updated_target
-                    }
-        '''
         elif self.cfg['training']['layer_constraints_1'] == 'orthogonal':
                 orthogonal_constraint_loss = self.args.r * loss_orthogonal
                 loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
@@ -133,7 +111,6 @@ class Losses:
                     'loss_layer_orthogonal_1': orthogonal_constraint_loss,
                     'updated_target': updated_target
                     }
-
         elif self.cfg['training']['weight_constraints_1'] == 'orthogonal':
             # no weight decay self.cfg['training']['r']
             orthogonal_constraint_loss =  self.args.r * loss_orthogonal
@@ -146,16 +123,15 @@ class Losses:
                 'loss_weight_orthogonal_1': orthogonal_constraint_loss,
                 'updated_target': updated_target
                 }
-
         elif self.cfg['training']['smoothness_loss']:
-            smoothness_weight = 1e-3
+            smoothness_weight = 1
             loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + smoothness_weight * (loss_doa_smoothness)
             losses_dict = {
                 'all': loss_all,
                 'sed': loss_sed,
                 'doa': loss_doa,
+                'loss_doa_smoothness': loss_doa_smoothness,
                 'updated_target': updated_target,
-                'loss_doa_smoothness': loss_doa_smoothness
                 }
         else:
             loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa
