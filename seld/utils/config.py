@@ -112,11 +112,11 @@ def get_generator(args, cfg, dataset, generator_type):
 
 
 # Losses
-def get_losses(cfg):
+def get_losses(cfg, args):
     """ Get losses
 
     """
-    losses = method_dict[cfg['method']].losses.Losses(cfg)
+    losses = method_dict[cfg['method']].losses.Losses(cfg, args)
     for idx, loss_name in enumerate(losses.names):
         logging.info('{} is used as the {} loss.'.format(loss_name, convert_ordinal(idx + 1)))
     logging.info('')
@@ -154,6 +154,8 @@ def get_models(cfg, dataset, cuda, model_name=None):
     logging.info('=====>> Building a model\n')
     if not model_name:
         model = vars(method_dict[cfg['method']].models)[cfg['training']['model']](cfg, dataset)
+    elif model_name == 'seld_attention' :
+        model = vars(method_dict[cfg['method']].models)[model_name](cfg, dataset)
     else:
         model = vars(method_dict[cfg['method']].models)[model_name](cfg, dataset)
     model = move_model_to_gpu(model, cuda)
