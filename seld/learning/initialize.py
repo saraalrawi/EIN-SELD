@@ -26,7 +26,10 @@ def init_train(args, cfg, dataset):
     """
 
     '''Cuda'''
-    args.cuda = not args.no_cuda and torch.cuda.is_available() 
+    args.cuda = not args.no_cuda and torch.cuda.is_available()
+    # empty cuda
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     ''' Reproducible seed set'''
     torch.manual_seed(args.seed)
@@ -40,7 +43,7 @@ def init_train(args, cfg, dataset):
     '''Directories'''
     print('Train ID is {}\n'.format(cfg['training']['train_id']))
     stamp = datetime.now().strftime('%b%d_%H-%M-%S')
-    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_conv_layer_orth_constraint_' + str(args.r) + '_' + str(stamp)+ str(cfg['data']['type'])) \
+    out_train_dir = Path(cfg['workspace_dir']).joinpath('out_train_SELD_ATT_'+ str(stamp)+ str(cfg['data']['type'])) \
         .joinpath(cfg['method']).joinpath(cfg['training']['train_id'])
     if out_train_dir.is_dir():
         flag = input("Train ID folder {} is existed, delete it? (y/n)". \
@@ -83,13 +86,13 @@ def init_train(args, cfg, dataset):
     af_extractor = get_afextractor(cfg, args.cuda, data_type='train')
 
     '''Model'''
-    model = get_models(cfg, dataset, args.cuda)
+    model = get_models(cfg, dataset, args.cuda, cfg['training']['model'])
 
     '''Optimizer'''
     optimizer = get_optimizer(cfg, af_extractor, model)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=cfg['training']['lr_step_size'], 
                     gamma=cfg['training']['lr_gamma'])
-
+    #verbose = False
     '''Trainer'''
     trainer = get_trainer(args=args, cfg=cfg, dataset=dataset, valid_set=valid_set,
          af_extractor=af_extractor, model=model, optimizer=optimizer, losses=losses, metrics=metrics)
@@ -129,10 +132,10 @@ def init_train(args, cfg, dataset):
     if cfg['training']['loss_type'] == 'doa':
         logging.info('DOA loss type is: {}\n'.format(cfg['training']['doa_loss_type']))
     logging.info('Data augmentation methods used are: {}\n'.format(cfg['data_augmentation']['type']))
-    logging.info('Constraints used are weight_constraints, '
-                 'layer_constraints,'
-                 'weight_constraints_1,'
-                 'layer_constraints_1  : {} {} {} {} \n'.format(cfg['training']['weight_constraints'],
+    logging.info('Constraints used are weight_constraints: {}\n '
+                 'layer_constraints: {}\n'
+                 'weight_constraints_1: {}\n'
+                 'layer_constraints_1: {} \n'.format(cfg['training']['weight_constraints'],
                                                                cfg['training']['layer_constraints'],
                                                                cfg['training']['weight_constraints_1'],
                                                                cfg['training']['layer_constraints_1']))
@@ -141,6 +144,7 @@ def init_train(args, cfg, dataset):
         'writer': writer,
         'train_generator': train_generator,
         'valid_generator': valid_generator,
+        'optimizer' : optimizer,
         'lr_scheduler': lr_scheduler,
         'trainer': trainer,
         'ckptIO': ckptIO,
