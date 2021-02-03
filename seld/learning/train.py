@@ -116,8 +116,9 @@ def train(cfg, **initializer):
         ## Train
         ###############
         trainer.train_step(batch_sample, epoch_it)
-        if rem_batch == 0 and it > 0:
-            optimizer.step()
+        #if rem_batch == 0 and it > 0:
+            #pass
+            #optimizer.step()
             #lr_scheduler.step()
         it += 1
     iterator.close()
