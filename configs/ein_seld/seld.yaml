@@ -4,7 +4,7 @@ workspace_dir: /home/alrawis/EIN-SELD/
 dataset_dir: /home/alrawis/EIN-SELD/_dataset/dataset_root/
 hdf5_dir: /home/alrawis/EIN-SELD/_hdf5/
 data:
-  type: mic
+  type: foa
   sample_rate: 24000
   n_fft: 1024
   hop_length: 600
@@ -28,7 +28,7 @@ training:
   loss_beta: 0.5
   PIT_type: tPIT
   weight_sharing: None  #stitching, attention_residual squeeze&excitation
-  batch_size: 8
+  batch_size: 64
   train_fold: 2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
   # 3,4,5,6 #this corresponds to the dev mode in seld dcase2020
   #2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
@@ -38,17 +38,17 @@ training:
   overlap: 1&2
   optimizer: adam
   lr: 1e-4  # 0.0003 0.0005
-  lr_step_size: 80 #100
-  lr_gamma: 0.1 #0.5
-  max_epoch: 90
+  lr_step_size: 80  #80 #100
+  lr_gamma: 0.3   # 0.1 #0.5 # 0.4
+  max_epoch: 150
   threshold_sed: 0.5
-  remark: None
-  weight_constraints: None # orthogonal - kernel orthogonality
-  layer_constraints: None # orthogonal - kernel orthogonality between the sed and doa branches
+  remark: pe=False
+  weight_constraints: False # orthogonal - kernel orthogonality
+  layer_constraints: False # orthogonal - kernel orthogonality between the sed and doa branches
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
-  weight_constraints_1: None # orthogonal conv weight
-  layer_constraints_1: None # orthogonal conv weight between the sed and doa branches
-  r: 0.1   # 1e-3 1e-5 conv orthogonality weight penalty
+  weight_constraints_1: True  # True, False orthogonal conv weight
+  layer_constraints_1: False  # True, False orthogonal conv weight between the sed and doa branches of EINV2
+  r: 0.001   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
   smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
 inference:
