@@ -56,7 +56,6 @@ def train(cfg, **initializer):
 
             for k, v in valid_losses.items():
 
-
                 wandb.log({k: v })
 
 
@@ -71,10 +70,11 @@ def train(cfg, **initializer):
             wandb.log({'LE19': valid_metrics['LE19'] })
             wandb.log({'LR19': valid_metrics['LR19'] })
             wandb.log({'seld19': valid_metrics['seld19'] })
-            
 
-            #wandb.log({'train/lr' : lr_scheduler.get_last_lr()[0]})
-            #writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
+
+            wandb.log({'train/lr' : lr_scheduler.get_last_lr()[0]})
+
+            writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
             logging.info('---------------------------------------------------------------------------------------------------'
                 +'------------------------------------------------------')
             logging.info('Iter: {},  Epoch/Total Epoch: {}/{},  Batch/Total Batch: {}/{}'.format(
@@ -84,10 +84,8 @@ def train(cfg, **initializer):
                 print_metrics(logging, writer, valid_losses, it, set_type='valid')
             if cfg['training']['valid_fold']:
                 print_metrics(logging, writer, valid_metrics, it, set_type='valid')
-            logging.info('Train time: {:.3f}s,  Valid time: {:.3f}s '.format(train_time, valid_time
+            logging.info('Train time: {:.3f}s,  Valid time: {:.3f}s , Lr: {} '.format(train_time, valid_time, lr_scheduler.get_last_lr()[0]
                 ))
-            # ,  Lr: {} , lr_scheduler.get_last_lr()[0]
-
             if 'PIT_type' in cfg['training']:
                 logging.info('PIT type: {}'.format(cfg['training']['PIT_type']))
             logging.info('---------------------------------------------------------------------------------------------------'
@@ -116,10 +114,8 @@ def train(cfg, **initializer):
         ## Train
         ###############
         trainer.train_step(batch_sample, epoch_it)
-        #if rem_batch == 0 and it > 0:
-            #pass
-            #optimizer.step()
-            #lr_scheduler.step()
+        if rem_batch == 0 and it > 0:
+            lr_scheduler.step()
         it += 1
     iterator.close()
 
