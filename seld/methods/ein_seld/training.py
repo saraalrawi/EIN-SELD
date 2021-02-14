@@ -129,15 +129,15 @@ class Trainer(BaseTrainer):
         loss_dict[self.cfg['training']['loss_type']].backward()
         self.optimizer.step()
 
-        self.train_losses['train_loss_all'] += loss_dict['all']
-        self.train_losses['train_loss_sed'] += loss_dict['sed']
-        self.train_losses['train_loss_doa'] += loss_dict['doa']
+        self.train_losses['train_loss_all'] += loss_dict['all'].item()
+        self.train_losses['train_loss_sed'] += loss_dict['sed'].item()
+        self.train_losses['train_loss_doa'] += loss_dict['doa'].item()
 
         if self.cfg['training']['weight_constraints']:
             self.train_losses['train_loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal']
 
         if self.cfg['training']['weight_constraints_1']:
-            self.train_losses['train_loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1']
+            self.train_losses['train_loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1'].item()
 
         if self.cfg['training']['layer_constraints']:
             self.train_losses['train_loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
@@ -153,6 +153,9 @@ class Trainer(BaseTrainer):
 
         Generate a batch of segmentations each time
         """
+        # clearing cuda, because of memory leak
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         if valid_type == 'train':
             train_losses = self.train_losses.copy()
