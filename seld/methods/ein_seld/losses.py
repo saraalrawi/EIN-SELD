@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.nn.functional import normalize
 from torch.autograd import Variable
 from methods.utils.loss_utilities import BCEWithLogitsLoss, MSELoss
 
@@ -144,7 +143,8 @@ class Losses:
         elif self.cfg['training']['weight_constraints_1']:
             # no weight decay self.cfg['training']['r']
             # self.args.r
-            orthogonal_constraint_loss =  0.001 * loss_orthogonal
+            #r = self.cfg['training']['r']
+            orthogonal_constraint_loss =  1e-3 * loss_orthogonal
             loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
 
             losses_dict = {
@@ -252,14 +252,14 @@ class Losses:
                 w1 = W.view(-1, cols)
                 wt = torch.transpose(w1, 0, 1)
                 m = torch.matmul(wt, w1)
-                ident = Variable(torch.eye(cols, cols))
-                ident = ident.cuda()
+                ident = Variable(torch.eye(cols, cols).cud())
+                #ident = ident.cuda()
 
                 w_tmp = (m - ident)
                 height = w_tmp.size(0)
-                u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
-                v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
-                u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+                u = F.normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+                v = F.normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+                u = F.normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
                 sigma = torch.dot(u, torch.matmul(w_tmp, v))
 
                 if l2_reg is None:
@@ -278,14 +278,14 @@ class Losses:
         w2 = doa_layer.view(-1, cols_doa)
         wt = torch.transpose(w2, 0, 1)
         m = torch.matmul(wt, w1)
-        ident = Variable(torch.eye(cols, cols))
-        ident = ident.cuda()
+        ident = Variable(torch.eye(cols, cols).cuda())
+        #ident = ident.cuda()
 
         w_tmp = (m - ident)
         height = w_tmp.size(0)
-        u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
-        v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
-        u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+        u = F.normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+        v = F.normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+        u = F.normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
         sigma = torch.dot(u, torch.matmul(w_tmp, v))
 
 
@@ -317,27 +317,20 @@ class Losses:
         target[:, :, ct, ct] = torch.eye(o_c).cuda()
         return torch.norm(output - target)
 
-    '''
-    def orth_dist(self,matr, stride=None):
-        mat = matr.reshape((matr.shape[0], -1))
-        if matr.shape[0] < matr.shape[1]:
-            matr = matr.permute(1, 0)
-        return torch.norm(torch.t(matr) @ mat - torch.eye(matr.shape[1]).cuda())
-    '''
     def orth_dist(self, W, stride=None):
         cols = W[0].numel()
         rows = W.shape[0]
         w1 = W.view(-1, cols)
         wt = torch.transpose(w1, 0, 1)
         m = torch.matmul(wt, w1)
-        ident = Variable(torch.eye(cols, cols))
-        ident = ident.cuda()
+        ident = Variable(torch.eye(cols, cols).cuda())
+        #ident = ident.cuda()
 
         w_tmp = (m - ident)
         height = w_tmp.size(0)
-        u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
-        v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
-        u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+        u = F.normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+        v = F.normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+        u = F.normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
         sigma = torch.dot(u, torch.matmul(w_tmp, v))
 
 
@@ -353,14 +346,14 @@ class Losses:
         w1 = W_2.view(-1, cols)
         wt = torch.transpose(w1, 0, 1)
         m = torch.matmul(wt, w1)
-        ident = Variable(torch.eye(cols, cols))
-        ident = ident.cuda()
+        ident = Variable(torch.eye(cols, cols).cuda())
+        #ident = ident.cuda()
 
         w_tmp = (m - ident)
         height = w_tmp.size(0)
-        u = normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
-        v = normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
-        u = normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
+        u = F.normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
+        v = F.normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
+        u = F.normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
         sigma = torch.dot(u, torch.matmul(w_tmp, v))
 
 
