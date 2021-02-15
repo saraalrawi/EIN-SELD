@@ -94,8 +94,11 @@ class Losses:
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][0].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][3].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_block_att[i][0].weight)
+            if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
+                loss_orthogonal = 0.
+                pass
 
-                    # orthogonality between the sed and doa branches of EINV2 model.
+            # orthogonality between the sed and doa branches of EINV2 model.
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
                                   + self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[3].weight, model.module.doa_conv_block1[0].double_conv[3].weight) \
@@ -241,7 +244,16 @@ class Losses:
         }
         return loss_sed, loss_doa, updated_target, loss_doa_smoothness
 
+
     def orthogonal_distance(self, model):
+        '''
+        This function implements weight orthogonality on the weights of all layers of the network.
+        Args:
+            model: e.g. EINV2
+
+        Returns: unweighted orthogoanl loss.
+
+        '''
         l2_reg = None
         for W in model.parameters():
             if W.ndimension() < 2:
@@ -266,31 +278,6 @@ class Losses:
                     l2_reg = (sigma) ** 2
                 else:
                     l2_reg = l2_reg + (sigma) ** 2
-        return l2_reg
-
-    def orthogonal_layer_distance(self,sed_layer ,doa_layer):
-        #l2_reg = None
-
-        cols = sed_layer[0].numel()
-        cols_doa = doa_layer[0].numel()
-        rows = sed_layer.shape[0]
-        w1 = sed_layer.view(-1, cols)
-        w2 = doa_layer.view(-1, cols_doa)
-        wt = torch.transpose(w2, 0, 1)
-        m = torch.matmul(wt, w1)
-        ident = Variable(torch.eye(cols, cols).cuda())
-        #ident = ident.cuda()
-
-        w_tmp = (m - ident)
-        height = w_tmp.size(0)
-        u = F.normalize(w_tmp.new_empty(height).normal_(0, 1), dim=0, eps=1e-12)
-        v = F.normalize(torch.matmul(w_tmp.t(), u), dim=0, eps=1e-12)
-        u = F.normalize(torch.matmul(w_tmp, v), dim=0, eps=1e-12)
-        sigma = torch.dot(u, torch.matmul(w_tmp, v))
-
-
-        l2_reg = (sigma) ** 2
-
         return l2_reg
 
     def adjust_ortho_decay_rate(self,epoch_it):
@@ -318,6 +305,14 @@ class Losses:
         return torch.norm(output - target)
 
     def orth_dist(self, W, stride=None):
+        '''
+            This function is implemeted to impose orthogonality on the weight of conv layer.
+                Args:
+                    W: weight of a conv layer
+
+                Returns: unweighted orthogoanl loss.
+
+        '''
         cols = W[0].numel()
         rows = W.shape[0]
         w1 = W.view(-1, cols)
@@ -341,6 +336,16 @@ class Losses:
     # paper: https://arxiv.org/abs/1911.12207
     # For layers orthogonality
     def orth_dist_layer(self, W_1, W_2 ,stride=None):
+        '''
+        This function is implemented to impose orthogonality between sed and doa branches of EINV2 (baseline network)
+        Args:
+            W_1: weight from sed conv layer
+            W_2: weight from doa conv layer
+            stride:
+
+        Returns: unweighted orthogoanl loss.
+
+        '''
         cols = W_1[0].numel()
         rows = W_1.shape[0]
         w1 = W_2.view(-1, cols)
@@ -360,7 +365,7 @@ class Losses:
         l2_reg = (sigma) ** 2
 
         return l2_reg
-
+    # Stronger orthogonality from paper: https://arxiv.org/abs/1911.12207
     def deconv_orth_dist_layer(self,kernel,kernel_, stride=2, padding=1):
         [o_c, i_c, w, h] = kernel.shape
         output = torch.conv2d(kernel, kernel_, stride=stride, padding=padding)
@@ -368,3 +373,25 @@ class Losses:
         ct = int(np.floor(output.shape[-1] / 2))
         target[:, :, ct, ct] = torch.eye(o_c).cuda()
         return torch.norm(output - target)
+
+# diff loss from Domain Separation Networks.
+class DiffLoss(nn.Module):
+
+    def __init__(self):
+        super(DiffLoss, self).__init__()
+
+    def forward(self, input1, input2):
+
+        batch_size = input1.size(0)
+        input1 = input1.view(batch_size, -1)
+        input2 = input2.view(batch_size, -1)
+
+        input1_l2_norm = torch.norm(input1, p=2, dim=1, keepdim=True).detach()
+        input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6)
+
+        input2_l2_norm = torch.norm(input2, p=2, dim=1, keepdim=True).detach()
+        input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)
+
+        diff_loss = torch.mean((input1_l2.t().mm(input2_l2)).pow(2))
+
+        return diff_loss
