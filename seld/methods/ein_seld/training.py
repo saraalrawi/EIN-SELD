@@ -118,14 +118,14 @@ class Trainer(BaseTrainer):
 
         (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
         batch_x = (batch_x - self.mean) / self.std
-        pred = self.model(batch_x)
+        pred, pred_constraint = self.model(batch_x)
 
         #if self.cfg['training']['model'] != 'EINV2':
         #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
         #    pred['sed'] = conv_layer.cuda()(pred['sed'])
         #    pred['doa'] = conv_layer.cuda()(pred['doa'])
 
-        loss_dict = self.losses.calculate(pred, batch_target, epoch_it,self.model)
+        loss_dict = self.losses.calculate(pred, pred_constraint,batch_target, epoch_it,self.model)
         loss_dict[self.cfg['training']['loss_type']].backward()
         self.optimizer.step()
 
@@ -134,19 +134,19 @@ class Trainer(BaseTrainer):
         self.train_losses['train_loss_doa'] += loss_dict['doa'].item()
 
         if self.cfg['training']['weight_constraints']:
-            self.train_losses['train_loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal']
+            self.train_losses['train_loss_weight_orthogonal'] += loss_dict['loss_weight_orthogonal'].item()
 
         if self.cfg['training']['weight_constraints_1']:
             self.train_losses['train_loss_weight_orthogonal_1'] += loss_dict['loss_weight_orthogonal_1'].item()
 
         if self.cfg['training']['layer_constraints']:
-            self.train_losses['train_loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal']
+            self.train_losses['train_loss_layer_orthogonal'] += loss_dict['loss_layer_orthogonal'].item()
 
         if self.cfg['training']['layer_constraints_1']:
-            self.train_losses['train_loss_layer_orthogonal_1'] += loss_dict['loss_layer_orthogonal_1']
+            self.train_losses['train_loss_layer_orthogonal_1'] += loss_dict['loss_layer_orthogonal_1'].item()
 
         if self.cfg['training']['smoothness_loss']:
-            self.train_losses['train_loss_doa_smoothness'] += loss_dict['loss_doa_smoothness']
+            self.train_losses['train_loss_doa_smoothness'] += loss_dict['loss_doa_smoothness'].item()
 
     def validate_step(self, generator=None, max_batch_num=None, valid_type='train', epoch_it=0):
         """ Perform the validation on the train, valid set
@@ -188,7 +188,7 @@ class Trainer(BaseTrainer):
                     self.model.eval()
                     (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
                     batch_x = (batch_x - self.mean) / self.std
-                    pred = self.model(batch_x)
+                    pred, pred_constraint = self.model(batch_x)
 
                     #if self.cfg['training']['model'] != 'EINV2':
                     #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
@@ -196,7 +196,7 @@ class Trainer(BaseTrainer):
                     #    pred['doa'] = conv_layer.cuda()(pred['doa'])
 
 
-                loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
+                loss_dict = self.losses.calculate(pred, pred_constraint,batch_target, epoch_it, self.model)
                 pred['sed'] = torch.sigmoid(pred['sed'])
                 loss_all += loss_dict['all'].cpu().detach().numpy()
                 loss_sed += loss_dict['sed'].cpu().detach().numpy()
