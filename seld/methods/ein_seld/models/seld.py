@@ -325,11 +325,12 @@ class SELD_ATT(nn.Module):
                     atten_encoder[i][j][0] = self.encoder_att[i][j](shared_feature[j][0])
                     # a_hat
                     atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
+                    atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                     # f function
                     atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
+                    atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     # maxpooling
                     atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(2, 2), stride=2)
-                    # here could be dropout as well.
                 else:
                     if (j == 3):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
