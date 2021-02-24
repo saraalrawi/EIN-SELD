@@ -16,10 +16,9 @@ class Losses:
         self.losses = [BCEWithLogitsLoss(reduction='mean'), MSELoss(reduction='mean')]
         self.losses_pit = [BCEWithLogitsLoss(reduction='PIT'), MSELoss(reduction='PIT')]
 
-
         self.names = ['loss_all'] + [loss.name for loss in self.losses]
     
-    def calculate(self, pred, target, epoch_it,model):
+    def calculate_attention(self, pred , pred_constraint, target, epoch_it,model):
 
         if 'PIT' not in self.cfg['training']['PIT_type']:
             updated_target = target
@@ -27,9 +26,8 @@ class Losses:
             loss_doa = self.losses[1].calculate_loss(pred['doa'], updated_target['doa'])
         elif self.cfg['training']['PIT_type'] == 'tPIT':
             loss_sed, loss_doa, updated_target, loss_doa_smoothness = self.tPIT(pred, target)
-            if self.cfg['training']['weight_constraints']:
+            if self.cfg['training']['weight_constraints'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orthogonal_distance(model)
-
             # stronger weight orthogonality, model EINV2
             if self.cfg['training']['weight_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orth_dist(model.module.sed_conv_block1[0].double_conv[0].weight) \
@@ -94,10 +92,9 @@ class Losses:
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][0].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][3].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_block_att[i][0].weight)
+            # apply constraint between the private spaces, only between the last conv layers of the attention modules
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
-                loss_orthogonal = 0.
-                pass
-
+                loss_orthogonal = self.diff_loss(pred_constraint['sed_1'],pred_constraint['doa_1'])
             # orthogonality between the sed and doa branches of EINV2 model.
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
@@ -133,7 +130,168 @@ class Losses:
                 'updated_target': updated_target
                 }
         elif self.cfg['training']['layer_constraints_1']:
-                orthogonal_constraint_loss = self.args.r * loss_orthogonal
+                r = self.cfg['training']['r']
+                orthogonal_constraint_loss = r * loss_orthogonal
+                loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
+
+                losses_dict = {
+                    'all': loss_all,
+                    'sed': loss_sed,
+                    'doa': loss_doa,
+                    'loss_layer_orthogonal_1': orthogonal_constraint_loss,
+                    'updated_target': updated_target
+                    }
+        elif self.cfg['training']['weight_constraints_1']:
+            # no weight decay self.cfg['training']['r']
+            # self.args.r
+            #r = self.cfg['training']['r']
+            # EINV2-best=1e-5, SELD-ATTN=1e-3
+            # new EINV2 dev folds 1e-3
+            orthogonal_constraint_loss =  1e-3 * loss_orthogonal
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
+
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'loss_weight_orthogonal_1': orthogonal_constraint_loss,
+                'updated_target': updated_target
+                }
+        elif self.cfg['training']['smoothness_loss']:
+            smoothness_weight = 1
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + smoothness_weight * (loss_doa_smoothness)
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'loss_doa_smoothness': loss_doa_smoothness,
+                'updated_target': updated_target,
+                }
+        else:
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'updated_target': updated_target
+            }
+        return losses_dict
+
+
+    def calculate(self, pred , target, epoch_it,model):
+
+        if 'PIT' not in self.cfg['training']['PIT_type']:
+            updated_target = target
+            loss_sed = self.losses[0].calculate_loss(pred['sed'], updated_target['sed'])
+            loss_doa = self.losses[1].calculate_loss(pred['doa'], updated_target['doa'])
+        elif self.cfg['training']['PIT_type'] == 'tPIT':
+            loss_sed, loss_doa, updated_target, loss_doa_smoothness = self.tPIT(pred, target)
+            if self.cfg['training']['weight_constraints'] and self.cfg['training']['model'] == 'EINV2':
+                loss_orthogonal = self.orthogonal_distance(model)
+            # stronger weight orthogonality, model EINV2
+            if self.cfg['training']['weight_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
+                loss_orthogonal = self.orth_dist(model.module.sed_conv_block1[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block1[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block2[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block2[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block3[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block3[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block4[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.sed_conv_block4[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.doa_conv_block1[0].double_conv[0].weight)  \
+                                  + self.orth_dist(model.module.doa_conv_block1[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.doa_conv_block2[0].double_conv[0].weight)  \
+                                  + self.orth_dist(model.module.doa_conv_block2[0].double_conv[3].weight)  \
+                                  + self.orth_dist(model.module.doa_conv_block3[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.doa_conv_block3[0].double_conv[3].weight) \
+                                  + self.orth_dist(model.module.doa_conv_block4[0].double_conv[0].weight) \
+                                  + self.orth_dist(model.module.doa_conv_block4[0].double_conv[3].weight)
+
+                loss_orthogonal += self.deconv_orth_dist(model.module.sed_conv_block1[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.sed_conv_block1[0].double_conv[3].weight) + self.deconv_orth_dist(
+                    model.module.sed_conv_block2[0].double_conv[0].weight)
+                loss_orthogonal += self.deconv_orth_dist(model.module.sed_conv_block2[0].double_conv[3].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.sed_conv_block3[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.sed_conv_block3[0].double_conv[3].weight, stride=1)
+                loss_orthogonal += self.deconv_orth_dist(model.module.sed_conv_block4[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.sed_conv_block4[0].double_conv[3].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block1[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block1[0].double_conv[3].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block2[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block2[0].double_conv[3].weight, stride=1)
+                loss_orthogonal += self.deconv_orth_dist(model.module.doa_conv_block3[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block3[0].double_conv[3].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block4[0].double_conv[0].weight, stride=1) + self.deconv_orth_dist(
+                    model.module.doa_conv_block4[0].double_conv[3].weight, stride=1)
+            # stronger weight orthogonality, model SELD_ATT
+            if self.cfg['training']['weight_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
+                # orthogonal constraint on the conv layers of the shared_feature space
+                loss_orthogonal = self.orth_dist(model.module.shared_conv_block1[0].weight)\
+                                  + self.orth_dist(model.module.shared_conv_block1[3].weight)\
+                                  + self.orth_dist(model.module.shared_conv_block2[0].weight)\
+                                  + self.orth_dist(model.module.shared_conv_block2[3].weight) \
+                                  + self.orth_dist(model.module.shared_conv_block3[0].weight) \
+                                  + self.orth_dist(model.module.shared_conv_block3[3].weight) \
+                                  + self.orth_dist(model.module.shared_conv_block4[0].weight) \
+                                  + self.orth_dist(model.module.shared_conv_block4[3].weight)
+                loss_orthogonal += self.deconv_orth_dist(model.module.shared_conv_block1[0].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block1[3].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block2[0].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block2[3].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block3[0].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block3[3].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block4[0].weight) \
+                                   + self.deconv_orth_dist(model.module.shared_conv_block4[3].weight)
+                # apply the constraint on the private spaces
+                for j in range(len(model.module.encoder_att)):  # 2
+                    for i in range(len(model.module.encoder_att[j])):  # 4
+                        # apply orthogonality on 0 and 3 index of each block
+                        loss_orthogonal += self.orth_dist(model.module.encoder_att[j][i][0].weight) \
+                                           + self.orth_dist(model.module.encoder_att[j][i][3].weight)\
+                                           + self.orth_dist(model.module.encoder_block_att[i][0].weight)\
+                                           + self.deconv_orth_dist(model.module.encoder_att[j][i][0].weight)\
+                                           + self.deconv_orth_dist(model.module.encoder_att[j][i][3].weight)\
+                                           + self.deconv_orth_dist(model.module.encoder_block_att[i][0].weight)
+            # apply constraint between the private spaces, only between the last conv layers of the attention modules
+            #if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
+            #    loss_orthogonal = self.diff_loss(pred_constraint['sed_1'],pred_constraint['doa_1'])
+            # orthogonality between the sed and doa branches of EINV2 model.
+            if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
+                loss_orthogonal = self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[3].weight, model.module.doa_conv_block1[0].double_conv[3].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block2[0].double_conv[0].weight,model.module.doa_conv_block2[0].double_conv[0].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block2[0].double_conv[3].weight,model.module.doa_conv_block2[0].double_conv[3].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block3[0].double_conv[0].weight,model.module.doa_conv_block3[0].double_conv[0].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block3[0].double_conv[3].weight,model.module.doa_conv_block3[0].double_conv[3].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block4[0].double_conv[0].weight, model.module.doa_conv_block4[0].double_conv[0].weight) \
+                                  + self.orth_dist_layer(model.module.sed_conv_block4[0].double_conv[3].weight,model.module.doa_conv_block4[0].double_conv[3].weight)
+
+                loss_orthogonal += self.deconv_orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight ,
+                                                         stride=1) + self.deconv_orth_dist_layer(
+                    model.module.sed_conv_block1[0].double_conv[3].weight,model.module.doa_conv_block1[0].double_conv[3].weight) + self.deconv_orth_dist_layer(
+                    model.module.sed_conv_block2[0].double_conv[0].weight, model.module.doa_conv_block2[0].double_conv[0].weight)
+                loss_orthogonal += self.deconv_orth_dist_layer(model.module.sed_conv_block2[0].double_conv[3].weight,model.module.doa_conv_block2[0].double_conv[3].weight ,
+                                                         stride=1) + self.deconv_orth_dist_layer(
+                    model.module.sed_conv_block3[0].double_conv[0].weight, model.module.doa_conv_block3[0].double_conv[0].weight,  stride=1) + self.deconv_orth_dist_layer(
+                    model.module.sed_conv_block3[0].double_conv[3].weight,model.module.doa_conv_block3[0].double_conv[3].weight ,stride=1)
+                loss_orthogonal += self.deconv_orth_dist_layer(model.module.sed_conv_block4[0].double_conv[0].weight,model.module.doa_conv_block4[0].double_conv[0].weight ,
+                                                         stride=1) + self.deconv_orth_dist_layer(
+                    model.module.sed_conv_block4[0].double_conv[3].weight,model.module.doa_conv_block4[0].double_conv[3].weight, stride=1)
+
+        if self.cfg['training']['weight_constraints']:
+            orthogonal_constraint_loss = self.adjust_ortho_decay_rate(epoch_it + 1) * loss_orthogonal
+            loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
+
+            losses_dict = {
+                'all': loss_all,
+                'sed': loss_sed,
+                'doa': loss_doa,
+                'loss_weight_orthogonal': orthogonal_constraint_loss,
+                'updated_target': updated_target
+                }
+        elif self.cfg['training']['layer_constraints_1']:
+                r = self.cfg['training']['r']
+                orthogonal_constraint_loss = r * loss_orthogonal
                 loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
 
                 losses_dict = {
@@ -176,8 +334,6 @@ class Losses:
                 'updated_target': updated_target
             }
         return losses_dict
-
-
 
     def tPIT(self, pred, target):
         """Frame Permutation Invariant Training for 2 possible combinations
@@ -373,6 +529,20 @@ class Losses:
         ct = int(np.floor(output.shape[-1] / 2))
         target[:, :, ct, ct] = torch.eye(o_c).cuda()
         return torch.norm(output - target)
+
+    def diff_loss(self, input1, input2):
+        batch_size = input1.size(0)
+        input1 = input1.view(batch_size, -1)
+        input2 = input2.view(batch_size, -1)
+
+        input1_l2_norm = F.normalize(input1, p=2, dim=1).detach()
+        #input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6) # should understand this
+
+        input2_l2_norm = F.normalize(input2, p=2, dim=1).detach()
+        #input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)  # should understand this
+
+        diff_loss = torch.mean((input1_l2_norm.t().mm(input2_l2_norm)).pow(2)).cuda()
+        return diff_loss
 
 # diff loss from Domain Separation Networks.
 class DiffLoss(nn.Module):
