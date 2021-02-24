@@ -119,8 +119,10 @@ class BottleNeck(nn.Module):
         self.conv3 = nn.Conv2d(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * 4)
         self.relu = nn.ReLU(inplace=True)
+        self.down_sampler = Downsampler()
 
     def forward(self, x):
+        #x = self.conv4(x)
         residual = x
         # Layer #1
         out = self.conv1(x)
@@ -161,23 +163,24 @@ class AttentionModule(nn.Module):
     def __init__(self, inplanes, planes):
         super(AttentionModule, self).__init__()
         self.bottleneck1_1 = BottleNeck(inplanes, planes //4)
-        self.bottleneck1_2 = BottleNeck(inplanes, planes //4)
+        #self.bottleneck1_2 = BottleNeck(inplanes, planes //4)
         self.downsampler1 = Downsampler()
         self.bottleneck2_1 = BottleNeck(inplanes, planes //4)
         self.downsampler2 = Downsampler()
         self.bottleneck2_2 = BottleNeck(inplanes, planes //4)
-        self.bottleneck2_3 = BottleNeck(inplanes, planes //4)
+        #self.bottleneck2_3 = BottleNeck(inplanes, planes //4)
         self.deconv1 = Deconv(inplanes, planes)
         self.bottleneck2_4 = BottleNeck(inplanes, planes //4)
         self.deconv2 = Deconv(inplanes, planes)
-        self.conv2_1 = nn.Conv2d(inplanes, planes, 1)
-        self.conv2_2 = nn.Conv2d(inplanes, planes, 1)
+        #self.conv2_1 = nn.Conv2d(inplanes, planes, 1)
+        #self.conv2_2 = nn.Conv2d(inplanes, planes, 1)
+        self.conv_down = nn.Conv2d(inplanes, inplanes //2 ,1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         # trunk branch
         x_1 = self.bottleneck1_1(x)
-        x_1 = self.bottleneck1_2(x_1)
+        #x_1 = self.bottleneck1_2(x_1)
 
         # mask branch
         x_2 = self.downsampler1(x)
@@ -186,16 +189,16 @@ class AttentionModule(nn.Module):
         x_2 = self.downsampler2(x_2)
         # Perform Middle Residuals - Perform 2*r
         x_2 = self.bottleneck2_2(x_2)
-        x_2 = self.bottleneck2_3(x_2)
+        #x_2 = self.bottleneck2_3(x_2)
         # Upsampling Step Initialization - Top
         x_2 = self.deconv1(x_2)
         x_2 = self.bottleneck2_4(x_2)
         # Last interpolation step - Bottom
         x_2 = self.deconv2(x_2)
         # Conv 1
-        x_2 = self.conv2_1(x_2)
+        #x_2 = self.conv2_1(x_2)
         #  Conv 2
-        x_2 = self.conv2_2(x_2)
+        #x_2 = self.conv2_2(x_2)
         # Sigmoid
         x_2 = self.sigmoid(x_2)
 
@@ -204,6 +207,7 @@ class AttentionModule(nn.Module):
         #x = x + x_1
         # x_1
         x = self.attention_residual_learning(x_1, x_2)
+        x = self.conv_down(x)
         return  x
 
 
