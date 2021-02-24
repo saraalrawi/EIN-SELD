@@ -118,15 +118,17 @@ class Trainer(BaseTrainer):
 
         (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
         batch_x = (batch_x - self.mean) / self.std
-        pred, pred_constraint = self.model(batch_x)
+        if self.cfg['training']['model'] == 'SELD_ATT':
+            pred, pred_constraint = self.model(batch_x)
+        if self.cfg['training']['model'] == 'EINV2':
+            pred = self.model(batch_x)
 
-        #if self.cfg['training']['model'] != 'EINV2':
-        #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
-        #    pred['sed'] = conv_layer.cuda()(pred['sed'])
-        #    pred['doa'] = conv_layer.cuda()(pred['doa'])
+        if self.cfg['training']['model'] == 'SELD_ATT':
+            loss_dict = self.losses.calculate_attention(pred, pred_constraint,batch_target, epoch_it,self.model)
+        if self.cfg['training']['model'] == 'EINV2':
+            loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
 
-        loss_dict = self.losses.calculate(pred, pred_constraint,batch_target, epoch_it,self.model)
-        loss_dict[self.cfg['training']['loss_type']].backward()
+        loss_dict[self.cfg['training']['loss_type']].backward(retain_graph=False)
         self.optimizer.step()
 
         self.train_losses['train_loss_all'] += loss_dict['all'].item()
@@ -188,15 +190,14 @@ class Trainer(BaseTrainer):
                     self.model.eval()
                     (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
                     batch_x = (batch_x - self.mean) / self.std
-                    pred, pred_constraint = self.model(batch_x)
-
-                    #if self.cfg['training']['model'] != 'EINV2':
-                    #    conv_layer = nn.Conv2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
-                    #    pred['sed'] = conv_layer.cuda()(pred['sed'])
-                    #    pred['doa'] = conv_layer.cuda()(pred['doa'])
-
-
-                loss_dict = self.losses.calculate(pred, pred_constraint,batch_target, epoch_it, self.model)
+                    if self.cfg['training']['model'] == 'SELD_ATT':
+                        pred, pred_constraint = self.model(batch_x)
+                    if self.cfg['training']['model'] == 'EINV2':
+                        pred = self.model(batch_x)
+                if self.cfg['training']['model'] == 'SELD_ATT':
+                    loss_dict = self.losses.calculate_attention(pred, pred_constraint,batch_target, epoch_it, self.model)
+                if self.cfg['training']['model'] == 'EINV2':
+                    loss_dict = self.losses.calculate(pred,batch_target, epoch_it, self.model)
                 pred['sed'] = torch.sigmoid(pred['sed'])
                 loss_all += loss_dict['all'].cpu().detach().numpy()
                 loss_sed += loss_dict['sed'].cpu().detach().numpy()
@@ -216,12 +217,6 @@ class Trainer(BaseTrainer):
 
                 if self.cfg['training']['smoothness_loss']:
                     loss_doa_smoothness += loss_dict['loss_doa_smoothness'].cpu().detach().numpy()
-
-
-                #if self.cfg['training']['model'] != 'EINV2':
-                #    deconv_layer = nn.ConvTranspose2d(in_channels=20, out_channels=40, kernel_size=1, padding=0)
-                #    pred['sed'] = deconv_layer.cuda()(pred['sed'])
-                #    pred['doa'] = deconv_layer.cuda()(pred['doa'])
 
                 pred_sed_list.append(pred['sed'].cpu().detach().numpy())
                 pred_doa_list.append(pred['doa'].cpu().detach().numpy())
