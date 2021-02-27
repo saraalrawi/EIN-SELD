@@ -35,6 +35,7 @@ class UserDataset(Dataset):
         self.label_resolution = dataset.label_resolution
         self.frame_length = int(self.clip_length / self.label_resolution)
         self.label_interp_ratio = int(self.label_resolution * self.sample_rate / cfg['data']['hop_length'])
+        self.cfg = cfg
 
         # Chunklen and hoplen and segmentation. Since all of the clips are 60s long, it only segments once here
         data = np.zeros((1, self.clip_length * self.sample_rate))
@@ -168,6 +169,7 @@ class UserDataset(Dataset):
                         doa_label_new = np.zeros((pad_width_after_label, 2, 3))
                         sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
                         doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
+
                     self.dataset_list.append({
                         'filename': fn,
                         'n_segment': n_segment,
@@ -239,6 +241,11 @@ class UserDataset(Dataset):
                     doa_label_new = np.zeros((pad_width_after_label, 2, 3))
                     sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
                     doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
+                # invert data augmentation
+                if self.cfg['training']['invert_position_aug']:
+                    if np.random.random() > 0.5:
+                        x = np.flip(x)
+                        doa_label = 0.0 - doa_label
         if 'test' not in self.dataset_type:
             sample = {
                 'filename': fn,
