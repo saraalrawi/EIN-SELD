@@ -173,7 +173,7 @@ class SELD_ATT(nn.Module):
 
         filter = [64, 128, 256, 512, 512]
         # dropout
-        p = cfg['training']['dropout']
+        self.p = cfg['training']['dropout']
         if cfg['data']['audio_feature'] == 'logmel&intensity':
             self.f_bins = cfg['data']['n_mels']
             self.in_channels = 7
@@ -248,7 +248,7 @@ class SELD_ATT(nn.Module):
                                                 nn.ReLU(inplace=True),
                                                 nn.AvgPool2d(kernel_size=(1, 2))) # nn.AvgPool2d(kernel_size=(1, 2))
         #define a dropout layer
-        self.dropout = nn.Dropout(p=p)
+        self.dropout = nn.Dropout(p=self.p)
         # init the shared space
         # define task attention layers
         self.encoder_att = nn.ModuleList([nn.ModuleList([self.att_layer([filter[0], filter[0], filter[0]])])])
@@ -308,6 +308,7 @@ class SELD_ATT(nn.Module):
         for j, share in enumerate(shared_feature): # iterate over the shared blocks
             for l,layer in enumerate(share): # iterate over the layers of the shared blocks
                 shared_feature[j][l] = self.shared_network[j][l](shared)
+                #shared_feature[j][l] = self.dropout(shared_feature[j][l])
                 shared = shared_feature[j][l] # update the shared
 
         # define attention list for tasks
@@ -325,10 +326,10 @@ class SELD_ATT(nn.Module):
                     atten_encoder[i][j][0] = self.encoder_att[i][j](shared_feature[j][0])
                     # a_hat
                     atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                    atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                    #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                     # f function
                     atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                    atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                    #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     # maxpooling
                     atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(2, 2), stride=2)
                 else:
@@ -338,28 +339,29 @@ class SELD_ATT(nn.Module):
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
                         atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     elif (j == 2):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
                         atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1, 2))
                     else:
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1,2), stride=2)
         # Apply dropout
-        x_sed = self.dropout(atten_encoder[0][-2][-1])
+        x_sed = atten_encoder[0][-2][-1]
+        #x_sed = self.dropout(atten_encoder[0][-2][-1])
         x_sed = x_sed.mean(dim=3)  # (N, C, T)
-        x_doa = self.dropout(atten_encoder[1][-2][-1])
-        x_doa = x_doa.mean(dim=3)  # (N, C, T)
+        x_doa = atten_encoder[1][-2][-1] # (N, C, T)
+        x_doa = x_doa.mean(dim=3)
 
         # for private spaces orthogonality
         out_2 = {
@@ -380,6 +382,13 @@ class SELD_ATT(nn.Module):
         x_doa_1 = self.doa_trans_track1(x_doa).transpose(0, 1)  # (N, T, C)
         x_doa_2 = self.doa_trans_track2(x_doa).transpose(0, 1)  # (N, T, C)
 
+        # dropout before the fc - run 191
+        x_sed_1 = self.dropout(x_sed_1)
+        x_sed_2 = self.dropout(x_sed_2)
+
+        x_doa_1 = self.dropout(x_doa_1)
+        x_doa_2 = self.dropout(x_doa_2)
+        ##############################################################
         # fc
         x_sed_1 = self.final_act_sed(self.fc_sed_track1(x_sed_1))
         x_sed_2 = self.final_act_sed(self.fc_sed_track2(x_sed_2))
@@ -405,6 +414,7 @@ class SELD_ATT(nn.Module):
         att_block = nn.Sequential(
             nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=1, padding=0),
             nn.BatchNorm2d(channel[1]),
+            nn.Dropout(p=self.p),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels=channel[1], out_channels=channel[2], kernel_size=1, padding=0),
             nn.BatchNorm2d(channel[2]),
@@ -426,6 +436,7 @@ class SELD_ATT(nn.Module):
             conv_block = nn.Sequential(
                 nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
                 nn.BatchNorm2d(num_features=channel[1]),
+                nn.Dropout(p=self.p),
                 nn.ReLU(inplace=True),
             )
         else:
