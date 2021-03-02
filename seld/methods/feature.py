@@ -4,7 +4,7 @@ from methods.ein_seld.data_augmentation import spec_augment_
 from methods.ein_seld.data_augmentation import spec_augment, channel_rotation
 from methods.utils.stft import (STFT, LogmelFilterBank, intensityvector,
                                 spectrogram_STFTInput)
-
+import numpy as np
 
 class LogmelIntensity_Extractor(nn.Module):
     def __init__(self, cfg , data_type):
@@ -56,15 +56,23 @@ class LogmelIntensity_Extractor(nn.Module):
         aug_idx_spc = [i for i, x in enumerate(data_type) if x == "train_spec_aug"]
 
         '''
+        if ind == 'train':
+            if np.random.random() > 0.5:
+                input[:, :], pattern = channel_rotation.apply_data_channel_rotation('foa', input[:, :])
+                target['doa'] = channel_rotation.apply_label_channel_rotation('foa', target['doa'], pattern)
+        '''
         aug_idx_rotate = [i for i, x in enumerate(data_type) if x == "train_rotate_channel"]
         if ind == 'train'  and len(aug_idx_rotate) != 0:
             for i , dt in enumerate(aug_idx_rotate):
                 input[i, :, :], pattern = channel_rotation.apply_data_channel_rotation('foa', input[i, :, :])
-                target['doa'][i] = channel_rotation.apply_label_channel_rotation('foa', target['doa'][i], pattern)
-        '''
+                aug_rotate = channel_rotation.apply_label_channel_rotation('foa', target['doa'][i], pattern)
+                # update the target
+                target['doa'][i] = aug_rotate
+
 
         input = self.stft_extractor(input)
         logmel = self.logmel_extractor(self.spectrogram_extractor(input))
+
 
         if ind == 'train' and len(aug_idx_spc) != 0:
             for i , dt in enumerate(aug_idx_spc):
