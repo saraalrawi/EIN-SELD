@@ -55,12 +55,12 @@ class EINV2(nn.Module):
             nn.Parameter(torch.FloatTensor(256, 2, 2).uniform_(0.1, 0.9)),
         ])
 
-
+        '''
         if self.cfg['training']['weight_sharing'] == 'attention_residual':
             self.attention_1 = nn.Sequential(AttentionModule(inplanes=128,planes=128))
             self.attention_2 = nn.Sequential(AttentionModule(inplanes=256,planes=256))
             self.attention_3 = nn.Sequential(AttentionModule(inplanes=512,planes=512))
-
+        '''
 
         if self.pe_enable:
             self.pe = PositionalEncoding(pos_len=100, d_model=512, pe_type='t', dropout=0.0)
@@ -110,10 +110,10 @@ class EINV2(nn.Module):
                            torch.einsum('c, nctf -> nctf', self.stitch[0][:, 0, 1], x_doa_feat_1)
             x_doa_feat_1 = torch.einsum('c, nctf -> nctf', self.stitch[0][:, 1, 0], x_sed_feat_1) + \
                            torch.einsum('c, nctf -> nctf', self.stitch[0][:, 1, 1], x_doa_feat_1)
-
+        '''
         if self.cfg['training']['weight_sharing'] == 'attention_residual':
             x_sed_feat_1 = self.attention_1(torch.cat((x_sed_feat_1,x_doa_feat_1),dim=1))
-
+        '''
         x_sed_feat_2 = self.sed_conv_block2(x_sed_feat_1)
 
         x_doa_feat_2 = self.doa_conv_block2(x_doa_feat_1)
@@ -318,7 +318,6 @@ class SELD_ATT(nn.Module):
         for i in range(3):
             for j in range(5):
                 atten_encoder[i][j], atten_decoder[i][j] = ([0] * 3 for _ in range(2))
-
         for i in range(2): # iterate over the tasks
             for j in range(4): # iterate over the shared feature space
                 if j == 0:
@@ -383,11 +382,11 @@ class SELD_ATT(nn.Module):
         x_doa_2 = self.doa_trans_track2(x_doa).transpose(0, 1)  # (N, T, C)
 
         # dropout before the fc - run 191
-        x_sed_1 = self.dropout(x_sed_1)
-        x_sed_2 = self.dropout(x_sed_2)
+        #x_sed_1 = self.dropout(x_sed_1)
+        #x_sed_2 = self.dropout(x_sed_2)
 
-        x_doa_1 = self.dropout(x_doa_1)
-        x_doa_2 = self.dropout(x_doa_2)
+        #x_doa_1 = self.dropout(x_doa_1)
+        #x_doa_2 = self.dropout(x_doa_2)
         ##############################################################
         # fc
         x_sed_1 = self.final_act_sed(self.fc_sed_track1(x_sed_1))
@@ -414,10 +413,11 @@ class SELD_ATT(nn.Module):
         att_block = nn.Sequential(
             nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=1, padding=0),
             nn.BatchNorm2d(channel[1]),
-            nn.Dropout(p=self.p),
+            #nn.Dropout(p=0.1),
             nn.ReLU(inplace=True),
             nn.Conv2d(in_channels=channel[1], out_channels=channel[2], kernel_size=1, padding=0),
             nn.BatchNorm2d(channel[2]),
+            #nn.Dropout(p=self.p), # new
             nn.Sigmoid(),
         )
         return att_block
@@ -436,7 +436,7 @@ class SELD_ATT(nn.Module):
             conv_block = nn.Sequential(
                 nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
                 nn.BatchNorm2d(num_features=channel[1]),
-                nn.Dropout(p=self.p),
+                #nn.Dropout(p=self.p),
                 nn.ReLU(inplace=True),
             )
         else:
