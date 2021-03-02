@@ -279,32 +279,7 @@ def label_rotation_foa(label, pattern):
                 label_aug[n, 1, 2] = - label[n, 1, 2]
     else:
         print("Wrong pattern selection")
-
     return label_aug.cuda()
-
-
-def apply_channel_rotation_mic(x):
-    '''
-
-    Args:
-        x:
-
-    Returns:
-    '''
-    pattern = random.randrange(rotation_pattern)
-    #print("Data augmentation pattern {}".format(pattern))
-
-    x_aug = np.zeros(x.shape)
-    w = x[:, 0]
-    y = x[:, 1]
-    z = x[:, 2]
-    x = x[:, 3]
-
-    # w channel never change
-    x_aug[:, 0] = w
-    # to be implemented
-    return x_aug, pattern
-
 #list_labels
 def apply_data_channel_rotation(dataset_type,x):
     if dataset_type == 'foa':
@@ -321,7 +296,6 @@ def apply_label_channel_rotation(dataset_type,label, pattern):
     if dataset_type == 'foa':
         label_aug = label_rotation_foa( label, pattern)
         return label_aug
-            # label_rotation_foa(label, pattern[i])
     elif dataset_type == 'mic':
         pass
     else:
