@@ -72,6 +72,10 @@ def get_generator(args, cfg, dataset, generator_type):
         if 'train_spec_aug' in cfg['data_augmentation']['type']:
             augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_spec_aug')
             subset = ConcatDataset([subset, augset])
+        if 'train_invert_position_aug' in cfg['data_augmentation']['type']:
+            augset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='train_invert_position_aug')
+            subset = ConcatDataset([subset, augset])
+
 
         batch_sampler = method_dict[cfg['method']].data.UserBatchSampler(
             clip_num=len(subset), 
@@ -84,7 +88,7 @@ def get_generator(args, cfg, dataset, generator_type):
             num_workers=args.num_workers,
             collate_fn=method_dict[cfg['method']].data.collate_fn,
             pin_memory=True
-        )
+        ) #pin_memory=True
     elif generator_type == 'valid':
         subset = method_dict[cfg['method']].data.UserDataset(args, cfg, dataset, dataset_type='valid')
         data_generator = DataLoader(
@@ -154,7 +158,7 @@ def get_models(cfg, dataset, cuda, model_name=None):
     logging.info('=====>> Building a model\n')
     if not model_name:
         model = vars(method_dict[cfg['method']].models)[cfg['training']['model']](cfg, dataset)
-    elif model_name == 'seld_attention' :
+    elif model_name == 'SELD_ATT' :
         model = vars(method_dict[cfg['method']].models)[model_name](cfg, dataset)
     else:
         model = vars(method_dict[cfg['method']].models)[model_name](cfg, dataset)
