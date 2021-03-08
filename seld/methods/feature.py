@@ -53,14 +53,16 @@ class LogmelIntensity_Extractor(nn.Module):
             raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
                             Now it is {}".format(input.shape))
         # get the indices of augmented data
-        aug_idx_spc = [i for i, x in enumerate(data_type) if x == "train_spec_aug"]
+        aug_idx_inverse = [i for i, x in enumerate(data_type) if x == "train_invert_position_aug"]
+        if ind == 'train' and len(aug_idx_inverse) != 0:
+            for i, dt in enumerate(aug_idx_inverse):
+                input[i, :, :] = torch.flip(input[i, :, :], dims=[1])  # invert waveform time axis
+                sed_label = torch.flip(target['sed'][i], dims=[0])  # invert sed label time axis
+                doa_label = torch.flip(target['doa'][i], dims=[0])  # invert doa label time axis
+                doa_label = 0.0 - doa_label  # also invert sound source position
+                target['sed'][i] = sed_label
+                target['doa'][i] = doa_label
 
-        '''
-        if ind == 'train':
-            if np.random.random() > 0.5:
-                input[:, :], pattern = channel_rotation.apply_data_channel_rotation('foa', input[:, :])
-                target['doa'] = channel_rotation.apply_label_channel_rotation('foa', target['doa'], pattern)
-        '''
         aug_idx_rotate = [i for i, x in enumerate(data_type) if x == "train_rotate_channel"]
         if ind == 'train'  and len(aug_idx_rotate) != 0:
             for i , dt in enumerate(aug_idx_rotate):
@@ -73,7 +75,7 @@ class LogmelIntensity_Extractor(nn.Module):
         input = self.stft_extractor(input)
         logmel = self.logmel_extractor(self.spectrogram_extractor(input))
 
-
+        aug_idx_spc = [i for i, x in enumerate(data_type) if x == "train_spec_aug"]
         if ind == 'train' and len(aug_idx_spc) != 0:
             for i , dt in enumerate(aug_idx_spc):
                 logmel[dt, :, :, :] = spec_augment.specaug(torch.squeeze(logmel[dt,:,:,:]).permute(0, 2, 1))
