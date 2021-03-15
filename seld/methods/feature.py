@@ -101,11 +101,9 @@ class LogmelIntensity_Extractor(nn.Module):
         out = torch.cat((logmel, intensity_vector), dim=1)
         return out, target
 
+    # For spectrogram visualization
     def plot_spectrogram(self, spect):
-        #mel_spect = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024)
         spect_cpu = spect.cpu()
-        #mel_spect = librosa.power_to_db(spect_cpu[0,:,:], ref=np.max)
-        #librosa.display.specshow(mel_spect, y_axis='mel', fmax=8000, x_axis='time')
         librosa.display.specshow(librosa.power_to_db(spect_cpu[2,:,:]**2, ref=np.max),sr = 24000, y_axis = 'log', x_axis = 'time')
 
         plt.title('Mel Spectrogram')
