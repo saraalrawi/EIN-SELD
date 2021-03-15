@@ -95,6 +95,9 @@ class Losses:
             # apply constraint between the private spaces, only between the last conv layers of the attention modules
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
                 loss_orthogonal = self.diff_loss(pred_constraint['sed_1'],pred_constraint['doa_1'])
+            # apply constraint between the private spaces, only between the last conv layers of the attention modules
+            if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT_LIGHT':
+                loss_orthogonal = self.diff_loss(pred_constraint['sed_1'], pred_constraint['doa_1'])
             # orthogonality between the sed and doa branches of EINV2 model.
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
