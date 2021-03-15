@@ -1,8 +1,7 @@
 import logging
 from timeit import default_timer as timer
-
 from tqdm import tqdm
-
+import gc
 from utils.common import print_metrics
 import wandb
 
@@ -23,13 +22,22 @@ def train(cfg, **initializer):
     ckptIO = initializer['ckptIO']
     epoch_it = initializer['epoch_it']
     it = initializer['it']
+    patience_param = 20
 
     batchNum_per_epoch = len(train_generator)
     max_epoch = cfg['training']['max_epoch']
 
     logging.info('===> Training mode\n')
+
+    params_num = sum(p.numel() for p in trainer.model.parameters() if p.requires_grad)
+    logging.info('Total number of parameters: {}\n'.format(params_num))
+
+    logging.info('Model architectures:\n{}\n'.format(trainer.model))
+
     iterator = tqdm(train_generator, total=max_epoch*batchNum_per_epoch-it, unit='it')
     train_begin_time = timer()
+    patience_cnt = 0
+    best_seld_metric = 99999
     for batch_sample  in iterator:
         epoch_it, rem_batch = it // batchNum_per_epoch, it % batchNum_per_epoch
 
@@ -55,9 +63,7 @@ def train(cfg, **initializer):
 
 
             for k, v in valid_losses.items():
-
                 wandb.log({k: v })
-
 
             wandb.log({'Er20': valid_metrics['ER20'] })
             wandb.log({'F20': valid_metrics['F20'] })
@@ -70,9 +76,12 @@ def train(cfg, **initializer):
             wandb.log({'LE19': valid_metrics['LE19'] })
             wandb.log({'LR19': valid_metrics['LR19'] })
             wandb.log({'seld19': valid_metrics['seld19'] })
-
-
             wandb.log({'train/lr' : lr_scheduler.get_last_lr()[0]})
+
+            patience_cnt += 1
+            if valid_metrics['seld20'] < best_seld_metric:
+                best_seld_metric = valid_metrics['seld20']
+                patience_cnt = 0
 
             writer.add_scalar('train/lr', lr_scheduler.get_last_lr()[0], it)
             logging.info('---------------------------------------------------------------------------------------------------'
@@ -92,6 +101,7 @@ def train(cfg, **initializer):
                 +'------------------------------------------------------')
             
             train_begin_time = timer()
+            gc.collect()
             
         ###############
         ## Save model
@@ -105,11 +115,9 @@ def train(cfg, **initializer):
         ###############
         ## Finish training
         ###############
-        if it == max_epoch * batchNum_per_epoch:
+        if it == max_epoch * batchNum_per_epoch or patience_cnt == patience_param:
             iterator.close()
             break
-
-
         ###############
         ## Train
         ###############
