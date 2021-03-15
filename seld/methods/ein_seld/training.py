@@ -118,12 +118,11 @@ class Trainer(BaseTrainer):
 
         (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,'train', data_type))
         batch_x = (batch_x - self.mean) / self.std
-        if self.cfg['training']['model'] == 'SELD_ATT':
+        if self.cfg['training']['model'] ==  'SELD_ATT' or self.cfg['training']['model'] == 'SELD_ATT_LIGHT':
             pred, pred_constraint = self.model(batch_x)
         if self.cfg['training']['model'] == 'EINV2':
             pred = self.model(batch_x)
-
-        if self.cfg['training']['model'] == 'SELD_ATT':
+        if self.cfg['training']['model'] == 'SELD_ATT' or self.cfg['training']['model'] == 'SELD_ATT_LIGHT':
             loss_dict = self.losses.calculate_attention(pred, pred_constraint,batch_target, epoch_it,self.model)
         if self.cfg['training']['model'] == 'EINV2':
             loss_dict = self.losses.calculate(pred, batch_target, epoch_it, self.model)
@@ -190,11 +189,11 @@ class Trainer(BaseTrainer):
                     self.model.eval()
                     (batch_x, batch_target) = self.af_extractor((batch_x, batch_target,valid_type, data_type ))
                     batch_x = (batch_x - self.mean) / self.std
-                    if self.cfg['training']['model'] == 'SELD_ATT':
+                    if self.cfg['training']['model'] == 'SELD_ATT' or self.cfg['training']['model'] == 'SELD_ATT_LIGHT':
                         pred, pred_constraint = self.model(batch_x)
                     if self.cfg['training']['model'] == 'EINV2':
                         pred = self.model(batch_x)
-                if self.cfg['training']['model'] == 'SELD_ATT':
+                if self.cfg['training']['model'] == 'SELD_ATT' or self.cfg['training']['model'] == 'SELD_ATT_LIGHT':
                     loss_dict = self.losses.calculate_attention(pred, pred_constraint,batch_target, epoch_it, self.model)
                 if self.cfg['training']['model'] == 'EINV2':
                     loss_dict = self.losses.calculate(pred,batch_target, epoch_it, self.model)
