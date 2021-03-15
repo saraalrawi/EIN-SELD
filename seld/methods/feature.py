@@ -5,6 +5,9 @@ from methods.ein_seld.data_augmentation import spec_augment, channel_rotation
 from methods.utils.stft import (STFT, LogmelFilterBank, intensityvector,
                                 spectrogram_STFTInput)
 import numpy as np
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
 
 class LogmelIntensity_Extractor(nn.Module):
     def __init__(self, cfg , data_type):
@@ -39,6 +42,7 @@ class LogmelIntensity_Extractor(nn.Module):
         self.intensityVector_extractor = intensityvector
 
         self.data_type = data_type
+        self.cfg = cfg
 
 
     def forward(self, x):
@@ -76,43 +80,34 @@ class LogmelIntensity_Extractor(nn.Module):
         logmel = self.logmel_extractor(self.spectrogram_extractor(input))
 
         aug_idx_spc = [i for i, x in enumerate(data_type) if x == "train_spec_aug"]
-        if ind == 'train' and len(aug_idx_spc) != 0:
-            for i , dt in enumerate(aug_idx_spc):
-                logmel[dt, :, :, :] = spec_augment.specaug(torch.squeeze(logmel[dt,:,:,:]).permute(0, 2, 1))
 
+        if ind == 'train' and len(aug_idx_spc) != 0:
+            # get specAugment Parameters
+            F = self.cfg['data_augmentation']['F']
+            T = self.cfg['data_augmentation']['T']
+            num_freq_masks = self.cfg['data_augmentation']['num_freq_masks']
+            num_time_masks = self.cfg['data_augmentation']['num_time_masks']
+            replace_with_zero = self.cfg['data_augmentation']['replace_with_zero']
+
+            for i , dt in enumerate(aug_idx_spc):
+
+                logmel_aug = spec_augment.specaug(torch.squeeze(logmel[dt,:,:,:]).permute(0, 2, 1),
+                                                  W=2, F=F, T=T,
+                                                  num_freq_masks=num_freq_masks,
+                                                  num_time_masks=num_time_masks,
+                                                  replace_with_zero=replace_with_zero)
+                logmel[dt, :, :, :] = logmel_aug
         intensity_vector = self.intensityVector_extractor(input, self.logmel_extractor.melW)
         out = torch.cat((logmel, intensity_vector), dim=1)
         return out, target
 
-    '''
-    def forward(self, x):
-        """
-        input: 
-            ((batch_size, channels=4, data_length), target ,data_type)
-        output: 
-            (batch_size, channels, time_steps, freq_bins)
-        """
-        input, target, ind, data_type = x
-        if input.ndim != 3:
-            raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
-                            Now it is {}".format(input.shape))
+    def plot_spectrogram(self, spect):
+        #mel_spect = librosa.feature.melspectrogram(y=y, sr=sr, n_fft=2048, hop_length=1024)
+        spect_cpu = spect.cpu()
+        #mel_spect = librosa.power_to_db(spect_cpu[0,:,:], ref=np.max)
+        #librosa.display.specshow(mel_spect, y_axis='mel', fmax=8000, x_axis='time')
+        librosa.display.specshow(librosa.power_to_db(spect_cpu[2,:,:]**2, ref=np.max),sr = 24000, y_axis = 'log', x_axis = 'time')
 
-        if ind == 'train':
-            for i , dt in enumerate(data_type):
-                if dt == 'train_rotate_channel':
-                    input[i, :, :], pattern = channel_rotation.apply_data_channel_rotation('foa',input[i, :, :])
-                    target['doa'][i] = channel_rotation.apply_label_channel_rotation('foa', target['doa'][i], pattern)
-
-        input = self.stft_extractor(input)
-        logmel = self.logmel_extractor(self.spectrogram_extractor(input))
-
-        if ind == 'train':
-            for i , dt in enumerate(data_type):
-                if dt == 'train_spec_aug':
-                    logmel_i = spec_augment.specaug(torch.squeeze(logmel[i,:,:,:]).permute(0, 2, 1))
-                    logmel[i,:,:,:] = logmel_i
-
-        intensity_vector = self.intensityVector_extractor(input, self.logmel_extractor.melW)
-        out = torch.cat((logmel, intensity_vector), dim=1)
-        return (out, target)
-    '''
+        plt.title('Mel Spectrogram')
+        plt.colorbar(format='%+2.0f dB')
+        plt.savefig('spec_channel_1.png')
