@@ -19,28 +19,34 @@ data:
   audio_feature: logmel&intensity
   feature_freeze: True
 data_augmentation:
-  type: None # train_spec_aug train_rotate_channel, pitchshift
+  type: train_spec_aug  #train_invert_position_aug #train_invert_position_aug  #train_spec_aug # train_spec_aug train_rotate_channel, pitchshift
+  # SpecAugment Parameter
+  F: 16 # int maximum width of each freq mask
+  T: 16 # int maximum width of each time mask
+  num_freq_masks: 2 # int number of frequency masks
+  num_time_masks: 6 # int number of time masks
+  replace_with_zero: True # Boolean if True, masked parts will be filled with 0, if False, filled with mean
 training:
   train_id: EINV2_tPIT_n1
   model: SELD_ATT # EINV2  # SELD_ATT
-  resume_model:  # None_epoch_latest.pth
+  resume_model: #/home/alrawis/EIN-SELD/out_train_att_Mar03_16-56-25foa/ein_seld/EINV2_tPIT_n1/checkpoints/pe=False_epoch_57.pth # None_epoch_latest.pth
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
   weight_sharing: stitching  #stitching, attention_residual squeeze&excitation
   batch_size: 8
-  train_fold: 3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
+  train_fold: 2,3,4,5,6 #3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
   #3,4,5,6 #this corresponds to the dev mode in seld dcase2020
   #2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
-  valid_fold: 2  # 1 this corresponds to the eval mode in seld dcase2020
+  valid_fold: 1 #2  # 1 this corresponds to the eval mode in seld dcase2020
   #2 this corresponds to the dev mode in seld dcase2020
   #1 this corresponds to the eval mode in seld dcase2020
   overlap: 1&2
   optimizer: adam
-  lr: 0.0002  #0.0004 #1e-4 # 0.0003 0.0005
-  lr_step_size: 80  #80 #100
+  lr: 0.0001 #0.0005  #0.0002 #1e-4 # 0.0003 0.0005
+  lr_step_size: 80 #70  #80 #100
   lr_gamma: 0.3 # 0.3 0.1  #0.5 # 0.4
-  max_epoch: 120 #90
+  max_epoch: 180 #140 #90 100
   threshold_sed: 0.5
   remark: pe=False
   weight_constraints: False # orthogonal - kernel orthogonality
@@ -48,7 +54,7 @@ training:
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
   weight_constraints_1: False  # True, False orthogonal conv weight
   layer_constraints_1: True  # True, False orthogonal conv weight between the sed and doa branches of EINV2
-  dropout: 0.2
+  dropout: 0.25
   r: 1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
   smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
