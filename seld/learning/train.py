@@ -22,7 +22,7 @@ def train(cfg, **initializer):
     ckptIO = initializer['ckptIO']
     epoch_it = initializer['epoch_it']
     it = initializer['it']
-    patience_param = 20
+    patience_param = 50
 
     batchNum_per_epoch = len(train_generator)
     max_epoch = cfg['training']['max_epoch']
@@ -116,6 +116,8 @@ def train(cfg, **initializer):
         ## Finish training
         ###############
         if it == max_epoch * batchNum_per_epoch or patience_cnt == patience_param:
+            if patience_cnt == patience_param:
+                logging.info('Patience reached!')
             iterator.close()
             break
         ###############
