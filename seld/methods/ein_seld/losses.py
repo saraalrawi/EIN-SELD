@@ -15,7 +15,7 @@ class Losses:
         self.decay = cfg['training']['orthogonal_decay']
         self.losses = [BCEWithLogitsLoss(reduction='mean'), MSELoss(reduction='mean')]
         self.losses_pit = [BCEWithLogitsLoss(reduction='PIT'), MSELoss(reduction='PIT')]
-
+        self.diff_loss = DiffLoss()
         self.names = ['loss_all'] + [loss.name for loss in self.losses]
     
     def calculate_attention(self, pred , pred_constraint, target, epoch_it,model):
@@ -533,19 +533,21 @@ class Losses:
         target[:, :, ct, ct] = torch.eye(o_c).cuda()
         return torch.norm(output - target)
 
+    '''
     def diff_loss(self, input1, input2):
         batch_size = input1.size(0)
         input1 = input1.view(batch_size, -1)
         input2 = input2.view(batch_size, -1)
 
-        input1_l2_norm = F.normalize(input1, p=2, dim=1).detach()
-        #input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6) # should understand this
+        input1_l2_norm = torch.norm(input1, p=2, dim=1, keepdim=True).detach()
+        input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6)
 
-        input2_l2_norm = F.normalize(input2, p=2, dim=1).detach()
-        #input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)  # should understand this
+        input2_l2_norm = torch.norm(input2, p=2, dim=1, keepdim=True).detach()
+        input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)
 
-        diff_loss = torch.mean((input1_l2_norm.t().mm(input2_l2_norm)).pow(2)).cuda()
+        diff_loss = torch.mean((input1_l2.t().mm(input2_l2)).pow(2)).cuda()
         return diff_loss
+    '''
 
 # diff loss from Domain Separation Networks.
 class DiffLoss(nn.Module):
@@ -560,11 +562,13 @@ class DiffLoss(nn.Module):
         input2 = input2.view(batch_size, -1)
 
         input1_l2_norm = torch.norm(input1, p=2, dim=1, keepdim=True).detach()
-        input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6)
+        input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6).detach()
+        #input1_l2 = input1.div(input1_l2_norm + 1e-6).detach() # we run into a memory issue if we do not detach.
 
         input2_l2_norm = torch.norm(input2, p=2, dim=1, keepdim=True).detach()
-        input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)
+        input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6).detach()
+        #input2_l2 = input2.div(input2_l2_norm + 1e-6).detach()
 
-        diff_loss = torch.mean((input1_l2.t().mm(input2_l2)).pow(2))
+        diff_loss = torch.mean((input1_l2.t().mm(input2_l2)).pow(2)).cuda()
 
         return diff_loss
