@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch
+import math
 
 
 def _segment_index(x, chunklen, hoplen, last_frame_always_paddding=False):
@@ -149,5 +150,24 @@ def to_metrics2020_format(label_dict, num_frames, label_resolution):
             output_dict[n_block][n_class].append([keys, values])
 
     return output_dict
+def add_real_life_noise(waveform, noise, SNR=10):
+    # adjust the size of the noise wave according to the data wave
+    if(len(noise[0,:])> len(waveform[0,:])):
+        noise = noise[:,0:len(waveform[0,:])]
+    # compute the RMS of the wave
+    RMS_s = math.sqrt(np.mean(waveform ** 2))
+    # compute required RMS of the noise
+    RMS_n = math.sqrt(RMS_s ** 2 / (pow(10, SNR / 10)))
+    # compute noise RMS
+    RMS_n_current = math.sqrt(np.mean(noise ** 2))
+    # compute the noise
+    noise = noise * (RMS_n / RMS_n_current)
+    # add the noise to each channel of the wave
+    waveform[0,:] = waveform[0,:] + noise
+    waveform[1,:] = waveform[1,:] + noise
+    waveform[2,:] = waveform[2,:] + noise
+    waveform[3,:] = waveform[3,:] + noise
+    # return the noisy wave to train the model with it
+    return waveform
 
 
