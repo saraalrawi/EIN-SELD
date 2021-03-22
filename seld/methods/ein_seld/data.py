@@ -5,7 +5,7 @@ import h5py
 import numpy as np
 import torch
 from methods.utils.data_utilities import (_segment_index, load_dcase_format,
-                                          to_metrics2020_format)
+                                          to_metrics2020_format, add_real_life_noise)
 from methods.ein_seld.data_augmentation.pitch_shift import apply_pitch_shift
 from methods.ein_seld.data_augmentation.channel_rotation import *
 
@@ -48,7 +48,15 @@ class UserDataset(Dataset):
             hoplen = int(cfg['data']['test_hoplen_sec'] * self.sample_rate)
             self.segmented_indexes, self.segmented_pad_width = _segment_index(data, chunklen, hoplen, last_frame_always_paddding=True)
         self.num_segments = len(self.segmented_indexes)
-
+        # to train with add noise get the files of the noise dataset - esc50
+        if self.cfg['data_noise']['add_noise']:
+            # Path for dataset
+            hdf5_dir = Path(cfg['hdf5_dir']).joinpath(cfg['dataset_noise_dir'])
+            # the noise sampling rate is equal to the data sampling rate
+            data_h5_dir = hdf5_dir.joinpath('noise_dataset').joinpath('{}fs'.format(cfg['data']['sample_rate']))
+            self.noise_data_h5_dir_list = data_h5_dir.joinpath('esc50')
+            data_noise_dirs= self.noise_data_h5_dir_list
+            self.paths_noise_list = [path for path in data_noise_dirs.glob('*.h5')]
         # Data and meta path
         fold_str_idx = dataset.fold_str_index
         ov_str_idx = dataset.ov_str_index
@@ -84,7 +92,14 @@ class UserDataset(Dataset):
             self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
                                if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
                                and not path.name.startswith('.')]
-
+        elif self.dataset_type == 'train_invert_position_aug':
+            data_dirs = [dev_data_dir]
+            self.meta_dir = dev_meta_dir
+            train_fold = [int(fold.strip()) for fold in str(cfg['training']['train_fold']).split(',')]
+            ov_set = str(cfg['training']['overlap']) if not overlap else overlap
+            self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
+                               if int(path.stem[fold_str_idx]) in train_fold and path.stem[ov_str_idx] in ov_set \
+                               and not path.name.startswith('.')]
         elif self.dataset_type == 'valid':
             if cfg['training']['valid_fold'] != 'eval':
                 data_dirs = [dev_data_dir]
@@ -224,6 +239,13 @@ class UserDataset(Dataset):
             else:
                 with h5py.File(data_path, 'r') as hf:
                     x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
+            if self.cfg['data_noise']['add_noise']:
+                # sample a random file from the noise dataset and add it to x
+                noise_wave_path = random.choice(self.paths_noise_list)
+                with h5py.File(noise_wave_path, 'r') as hf:
+                    # [()] is the new way of getting the scalar value instead of .value
+                    noise_wave = int16_samples_to_float32(hf['waveform'][()])
+                x = add_real_life_noise(x,noise_wave,self.cfg['data_noise']['SNR'])
             pad_width = ((0, 0), (pad_width_before, pad_width_after))                    
             x = np.pad(x, pad_width, mode='constant')
             if 'test' not in self.dataset_type:
@@ -242,10 +264,15 @@ class UserDataset(Dataset):
                     sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
                     doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
                 # invert data augmentation
+                '''
                 if self.cfg['training']['invert_position_aug']:
                     if np.random.random() > 0.5:
-                        x = np.flip(x)
-                        doa_label = 0.0 - doa_label
+                        x = np.flip(x, axis=1)  # invert waveform time axis
+                        sed_label = np.flip(sed_label, axis=0)  # invert sed label time axis
+                        doa_label = np.flip(doa_label, axis=0)  # invert doa label time axis
+                        doa_label = 0.0 - doa_label  # also invert sound source position
+                '''
+
         if 'test' not in self.dataset_type:
             sample = {
                 'filename': fn,
