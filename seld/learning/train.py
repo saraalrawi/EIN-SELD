@@ -5,6 +5,8 @@ import gc
 from utils.common import print_metrics
 import wandb
 
+
+
 def train(cfg, **initializer):
     """Train
 
@@ -22,7 +24,7 @@ def train(cfg, **initializer):
     ckptIO = initializer['ckptIO']
     epoch_it = initializer['epoch_it']
     it = initializer['it']
-    patience_param = 50
+    patience_param = cfg['training']['patience_param']
 
     batchNum_per_epoch = len(train_generator)
     max_epoch = cfg['training']['max_epoch']
@@ -52,7 +54,6 @@ def train(cfg, **initializer):
             for k, v in train_losses.items():
                 train_losses[k] = v / batchNum_per_epoch
                 wandb.log({k: v / batchNum_per_epoch})
-                wandb.log({k: v / batchNum_per_epoch})
             if cfg['training']['valid_fold']:
                 valid_losses, valid_metrics = trainer.validate_step(
                     generator=valid_generator,
@@ -63,8 +64,9 @@ def train(cfg, **initializer):
 
 
             for k, v in valid_losses.items():
-                wandb.log({k: v })
 
+                wandb.log({k: v })
+           
             wandb.log({'Er20': valid_metrics['ER20'] })
             wandb.log({'F20': valid_metrics['F20'] })
             wandb.log({'LE20': valid_metrics['LE20'] })
