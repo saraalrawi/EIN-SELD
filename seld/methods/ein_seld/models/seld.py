@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from methods.utils.model_utilities import (DoubleConv, PositionalEncoding,
-                                           init_layer, AttentionModule)
+                                           init_layer, AttentionModule,ChannelSELayer)
 
 
 class EINV2(nn.Module):
@@ -55,6 +55,10 @@ class EINV2(nn.Module):
             nn.Parameter(torch.FloatTensor(256, 2, 2).uniform_(0.1, 0.9)),
         ])
 
+        self.attention_se_1 = nn.Sequential(ChannelSELayer(128, reduction_ratio=2))
+        self.attention_se_2 = nn.Sequential(ChannelSELayer(256, reduction_ratio=2))
+        self.attention_se_3 = nn.Sequential(ChannelSELayer(512, reduction_ratio=2))
+
         '''
         if self.cfg['training']['weight_sharing'] == 'attention_residual':
             self.attention_1 = nn.Sequential(AttentionModule(inplanes=128,planes=128))
@@ -93,6 +97,7 @@ class EINV2(nn.Module):
         x: waveform, (batch_size, num_channels, data_length)
         """
         x_sed = x[:, :4]
+        #x_sed = x
         x_doa = x
 
         ##################################################################################
@@ -114,9 +119,16 @@ class EINV2(nn.Module):
         if self.cfg['training']['weight_sharing'] == 'attention_residual':
             x_sed_feat_1 = self.attention_1(torch.cat((x_sed_feat_1,x_doa_feat_1),dim=1))
         '''
-        x_sed_feat_2 = self.sed_conv_block2(x_sed_feat_1)
+        if self.cfg['training']['weight_sharing'] == 'attention_se':
+            x_sed_feat_1 = self.attention_se_1(torch.cat((x_sed_feat_1,x_doa_feat_1),dim=1))
+            x_doa_feat_1 = x_sed_feat_1
 
+        x_sed_feat_2 = self.sed_conv_block2(x_sed_feat_1)
         x_doa_feat_2 = self.doa_conv_block2(x_doa_feat_1)
+
+        if self.cfg['training']['weight_sharing'] == 'attention_se':
+            x_sed_feat_2 = self.attention_se_2(torch.cat((x_sed_feat_2,x_doa_feat_2),dim=1))
+            x_doa_feat_2 = x_sed_feat_2
 
         if self.cfg['training']['weight_sharing'] == 'stitching':
             x_sed_feat_2 = torch.einsum('c, nctf -> nctf', self.stitch[1][:, 0, 0], x_sed_feat_2) + \
@@ -125,6 +137,10 @@ class EINV2(nn.Module):
                            torch.einsum('c, nctf -> nctf', self.stitch[1][:, 1, 1], x_doa_feat_2)
         x_sed_feat_3 = self.sed_conv_block3(x_sed_feat_2)
         x_doa_feat_3 = self.doa_conv_block3(x_doa_feat_2)
+
+        if self.cfg['training']['weight_sharing'] == 'attention_se':
+            x_sed_feat_3 = self.attention_se_3(torch.cat((x_sed_feat_3,x_doa_feat_3),dim=1))
+            x_doa_feat_3 = x_sed_feat_3
 
         if self.cfg['training']['weight_sharing'] == 'stitching':
             x_sed_feat_3 = torch.einsum('c, nctf -> nctf', self.stitch[2][:, 0, 0], x_sed_feat_3) + \
@@ -423,28 +439,21 @@ class SELD_ATT(nn.Module):
         )
         return att_block
 
-    def conv_layer(self, channel, pred=False):
+    def conv_layer(self, channel):
         '''
         f function in the paper
         Args:
             channel:
-            pred:
 
         Returns:
 
         '''
-        if not pred:
-            conv_block = nn.Sequential(
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
-                nn.BatchNorm2d(num_features=channel[1]),
-                #nn.Dropout(p=self.p),
-                nn.ReLU(inplace=True),
-            )
-        else:
-            conv_block = nn.Sequential(
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[0], kernel_size=3, padding=1),
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=1, padding=0),
-            )
+
+        conv_block = nn.Sequential(
+            nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=channel[1]),
+             #nn.Dropout(p=self.p),
+            nn.ReLU(inplace=True),)
         return conv_block
 
 class SELD_ATT_LIGHT(nn.Module):
@@ -452,8 +461,9 @@ class SELD_ATT_LIGHT(nn.Module):
         super().__init__()
         self.pe_enable = False  # Ture | False
         self.cfg = cfg
-
-        filter = [64 // 2, 128 // 2, 256 // 2, 512 // 2, 512 // 2]
+        # reduce the parameters to 3 quarters
+        #filter = [64 // 2, 128 // 2, 256 // 2, 512 // 2, 512 // 2]
+        filter = [int(64 * 0.75), int(128 * 0.75), int(256 * 0.75), int(512 * 0.75), int(512 * 0.75)]
         # dropout
         self.p = cfg['training']['dropout']
         if cfg['data']['audio_feature'] == 'logmel&intensity':
@@ -462,74 +472,74 @@ class SELD_ATT_LIGHT(nn.Module):
 
         # defining shared network
         self.shared_conv_block1 = nn.Sequential(nn.Conv2d(in_channels=self.in_channels,
-                    out_channels=64 // 2,
+                    out_channels= int(64 * 0.75),
                     kernel_size=(3, 3), stride=(1, 1),
                     padding=(1,1), dilation=1, bias=False),
-            nn.BatchNorm2d(64 // 2),
+            nn.BatchNorm2d(int(64 * 0.75)),
             nn.ReLU(inplace=True),
             # nn.LeakyReLU(negative_slope=0.1, inplace=True),
-            nn.Conv2d(in_channels=64 // 2,
-                    out_channels=64 // 2,
+            nn.Conv2d(in_channels=int(64 * 0.75),
+                    out_channels=int(64 * 0.75),
                     kernel_size=(3,3), stride=(1,1),
                     padding=(1,1), dilation=1, bias=False),
-            nn.BatchNorm2d(64 // 2) ,
+            nn.BatchNorm2d(int(64 * 0.75)) ,
             nn.ReLU(inplace=True),nn.AvgPool2d(kernel_size=(2, 2)))
 
-        self.shared_conv_block2 = nn.Sequential(nn.Conv2d(in_channels=64 // 2,
-                                                          out_channels=128 // 2,
+        self.shared_conv_block2 = nn.Sequential(nn.Conv2d(in_channels=int(64 * 0.75),
+                                                          out_channels=int(128 * 0.75),
                                                           kernel_size=(3, 3),
                                                           stride=(1, 1),
                                                           padding=(1,1),
                                                           dilation=1,
                                                           bias=False),
-                                                nn.BatchNorm2d(128 // 2),
+                                                nn.BatchNorm2d(int(128 * 0.75)),
                                                 nn.ReLU(inplace=True),
             # nn.LeakyReLU(negative_slope=0.1, inplace=True),
-                                            nn.Conv2d(in_channels=128 // 2,
-                                                      out_channels=128 // 2,
+                                            nn.Conv2d(in_channels=int(128 * 0.75),
+                                                      out_channels=int(128 * 0.75),
                                                       kernel_size=(3,3),
                                                       stride=(1,1),
                                                       padding=(1,1),
                                                       dilation=1,
                                                       bias=False),
-                                            nn.BatchNorm2d(128 // 2),
+                                            nn.BatchNorm2d(int(128 * 0.75)),
                                             nn.ReLU(inplace=True),
                                             nn.AvgPool2d(kernel_size=(2, 2)))
 
-        self.shared_conv_block3 = nn.Sequential(nn.Conv2d(in_channels=128 // 2,
-                                                          out_channels=256 // 2,
+        self.shared_conv_block3 = nn.Sequential(nn.Conv2d(in_channels=int(128 * 0.75),
+                                                          out_channels=int(256 * 0.75),
                                                           kernel_size=(3, 3), stride=(1, 1),
                                                           padding=(1, 1), dilation=1, bias=False),
-                                                nn.BatchNorm2d(256 // 2),
+                                                nn.BatchNorm2d(int(256 * 0.75)),
                                                 nn.ReLU(inplace=True),
                                                 # nn.LeakyReLU(negative_slope=0.1, inplace=True),
-                                                nn.Conv2d(in_channels=256 // 2,
-                                                          out_channels=256 // 2,
+                                                nn.Conv2d(in_channels=int(256 * 0.75),
+                                                          out_channels=int(256 * 0.75),
                                                           kernel_size=(3, 3), stride=(1, 1),
                                                           padding=(1, 1), dilation=1, bias=False),
-                                                nn.BatchNorm2d(256 // 2),
+                                                nn.BatchNorm2d(int(256 * 0.75)),
                                                 nn.ReLU(inplace=True),nn.AvgPool2d(kernel_size=(1, 2)) )
-        self.shared_conv_block4 = nn.Sequential(nn.Conv2d(in_channels=256 // 2,
-                                                          out_channels=512 // 2,
+        self.shared_conv_block4 = nn.Sequential(nn.Conv2d(in_channels=int(256 * 0.75),
+                                                          out_channels=int(512 * 0.75),
                                                           kernel_size=(3, 3),
                                                           stride=(1, 1),
                                                           padding=(1, 1),
                                                           dilation=1,
                                                           bias=False),
-                                                nn.BatchNorm2d(512 // 2 ),
+                                                nn.BatchNorm2d(int(512 * 0.75)),
                                                 nn.ReLU(inplace=True),
                                                 # nn.LeakyReLU(negative_slope=0.1, inplace=True),
-                                                nn.Conv2d(in_channels=512 // 2,
-                                                          out_channels=512 // 2,
+                                                nn.Conv2d(in_channels=int(512 * 0.75),
+                                                          out_channels=int(512 * 0.75),
                                                           kernel_size=(3, 3),
                                                           stride=(1, 1),
                                                           padding=(1, 1),
                                                           dilation=1,
                                                           bias=False),
-                                                nn.BatchNorm2d(512 // 2),
+                                                nn.BatchNorm2d(int(512 * 0.75)),
                                                 nn.ReLU(inplace=True),
                                                 nn.AvgPool2d(kernel_size=(1, 2))) # nn.AvgPool2d(kernel_size=(1, 2))
-        #define a dropout layer
+        # #define a dropout layer
         self.dropout = nn.Dropout(p=self.p)
         # init the shared space
         # define task attention layers
@@ -551,21 +561,20 @@ class SELD_ATT_LIGHT(nn.Module):
 
 
         if self.pe_enable:
-            self.pe = PositionalEncoding(pos_len=100, d_model=512, pe_type='t', dropout=0.0)
+            self.pe = PositionalEncoding(pos_len=100, d_model=512, pe_type='t', dropout=0.2) # not applied in all cases
         self.sed_trans_track1 = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=512 // 2, nhead=8, dim_feedforward=1024, dropout=0.2), num_layers=2)
+            nn.TransformerEncoderLayer(d_model=int(512 * 0.75), nhead=8, dim_feedforward=int(1024 * 0.75), dropout=0.2), num_layers=2)
         self.sed_trans_track2 = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=512 // 2, nhead=8, dim_feedforward=1024, dropout=0.2), num_layers=2)
+            nn.TransformerEncoderLayer(d_model=int(512 * 0.75), nhead=8, dim_feedforward=int(1024 * 0.75), dropout=0.2), num_layers=2)
         self.doa_trans_track1 = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=512 // 2, nhead=8, dim_feedforward=1024 // 2, dropout=0.2), num_layers=2)
+            nn.TransformerEncoderLayer(d_model=int(512 * 0.75), nhead=8, dim_feedforward=int(1024 * 0.75), dropout=0.2), num_layers=2)
         self.doa_trans_track2 = nn.TransformerEncoder(
-            nn.TransformerEncoderLayer(d_model=512// 2, nhead=8, dim_feedforward=1024 // 2, dropout=0.2), num_layers=2)
+            nn.TransformerEncoderLayer(d_model=int(512 * 0.75), nhead=8, dim_feedforward=int(1024 * 0.75), dropout=0.2), num_layers=2)
 
-        # reduce it here to 256
-        self.fc_sed_track1 = nn.Linear(512 // 2, 14, bias=True)
-        self.fc_sed_track2 = nn.Linear(512 //2 , 14, bias=True)
-        self.fc_doa_track1 = nn.Linear(512 // 2 , 3, bias=True)
-        self.fc_doa_track2 = nn.Linear(512 // 2, 3, bias=True)
+        self.fc_sed_track1 = nn.Linear(int(512 * 0.75), 14, bias=True)
+        self.fc_sed_track2 = nn.Linear(int(512 * 0.75) , 14, bias=True)
+        self.fc_doa_track1 = nn.Linear(int(512 * 0.75) , 3, bias=True)
+        self.fc_doa_track2 = nn.Linear(int(512 * 0.75), 3, bias=True)
         self.final_act_sed = nn.Sequential()  # nn.Sigmoid()
         self.final_act_doa = nn.Tanh()
 
@@ -604,10 +613,10 @@ class SELD_ATT_LIGHT(nn.Module):
                     atten_encoder[i][j][0] = self.encoder_att[i][j](shared_feature[j][0])
                     # a_hat
                     atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                    atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                    #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                     # f function
                     atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                    atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                    #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     # maxpooling
                     atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(2, 2), stride=2)
                 else:
@@ -615,29 +624,31 @@ class SELD_ATT_LIGHT(nn.Module):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     elif (j == 2):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1, 2))
                     else:
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1,2), stride=2)
         # Apply dropout
-        x_sed = self.dropout(atten_encoder[0][-2][-1])
+        #x_sed = self.dropout(atten_encoder[0][-2][-1])
+        x_sed = atten_encoder[0][-2][-1]
         x_sed = x_sed.mean(dim=3)  # (N, C, T)
-        x_doa = self.dropout(atten_encoder[1][-2][-1]) # (N, C, T)
+        #x_doa = self.dropout(atten_encoder[1][-2][-1]) # (N, C, T)
+        x_doa = atten_encoder[1][-2][-1]
         x_doa = x_doa.mean(dim=3)
 
         # for private spaces orthogonality
@@ -659,13 +670,6 @@ class SELD_ATT_LIGHT(nn.Module):
         x_doa_1 = self.doa_trans_track1(x_doa).transpose(0, 1)  # (N, T, C)
         x_doa_2 = self.doa_trans_track2(x_doa).transpose(0, 1)  # (N, T, C)
 
-        # dropout before the fc - run 191
-        #x_sed_1 = self.dropout(x_sed_1)
-        #x_sed_2 = self.dropout(x_sed_2)
-
-        #x_doa_1 = self.dropout(x_doa_1)
-        #x_doa_2 = self.dropout(x_doa_2)
-        ##############################################################
         # fc
         x_sed_1 = self.final_act_sed(self.fc_sed_track1(x_sed_1))
         x_sed_2 = self.final_act_sed(self.fc_sed_track2(x_sed_2))
@@ -700,26 +704,16 @@ class SELD_ATT_LIGHT(nn.Module):
         )
         return att_block
 
-    def conv_layer(self, channel, pred=False):
+    def conv_layer(self, channel):
         '''
         f function in the paper
         Args:
             channel:
-            pred:
-
         Returns:
-
         '''
-        if not pred:
-            conv_block = nn.Sequential(
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
-                nn.BatchNorm2d(num_features=channel[1]),
-                #nn.Dropout(p=self.p),
-                nn.ReLU(inplace=True),
-            )
-        else:
-            conv_block = nn.Sequential(
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[0], kernel_size=3, padding=1),
-                nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=1, padding=0),
-            )
+        conv_block = nn.Sequential(
+            nn.Conv2d(in_channels=channel[0], out_channels=channel[1], kernel_size=3, padding=1),
+            nn.BatchNorm2d(num_features=channel[1]),
+            #nn.Dropout(p=self.p),
+            nn.ReLU(inplace=True),)
         return conv_block
