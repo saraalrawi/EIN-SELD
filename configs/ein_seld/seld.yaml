@@ -32,43 +32,44 @@ data_noise:
   SNR: 10 # Signal to noise ration
 training:
   train_id: EINV2_tPIT_n1
-  model: SELD_ATT_LIGHT  #EINV2  # SELD_ATT #SELD_ATT_LIGHT
+  model: EINV2  #EINV2  # SELD_ATT #SELD_ATT_LIGHT
   resume_model: #/home/alrawis/EIN-SELD/out_train_att_Mar03_16-56-25foa/ein_seld/EINV2_tPIT_n1/checkpoints/pe=False_epoch_57.pth # None_epoch_latest.pth
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  weight_sharing: stitching  #stitching, attention_residual squeeze&excitation
-  batch_size: 16
-  train_fold: 3,4,5,6 #3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
+  weight_sharing: attention_se  #stitching, attention_se, attention_residual
+  batch_size: 32
+  train_fold: 2,3,4,5,6 #3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
   #3,4,5,6 #this corresponds to the dev mode in seld dcase2020
   #2,3,4,5,6 # this corresponds to the eval mode in seld dcase2020
-  valid_fold: 2 #2  # 1 this corresponds to the eval mode in seld dcase2020
+  valid_fold: 1 #2  # 1 this corresponds to the eval mode in seld dcase2020
   #2 this corresponds to the dev mode in seld dcase2020
   #1 this corresponds to the eval mode in seld dcase2020
   overlap: 1&2
   optimizer: adam
-  lr: 1e-4 #0.0005  #0.0002 #1e-4 # 0.0003 0.0005
-  lr_step_size: 60 #70  #80 #100
+  lr: 0.0005  #0.0005  #0.0002 #1e-4 # 0.0003 0.0005
+  lr_step_size: 80 #60 #70  #80 #100
   lr_gamma: 0.3 # 0.3 0.1  #0.5 # 0.4
-  max_epoch: 180 #140 #90 100
+  max_epoch: 90 #140 #90 100
   threshold_sed: 0.5
   remark: pe=False
   weight_constraints: False # orthogonal - kernel orthogonality
   layer_constraints: False # orthogonal - kernel orthogonality between the sed and doa branches
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
   weight_constraints_1: False  # True, False orthogonal conv weight
-  layer_constraints_1: True   # True, False orthogonal conv weight
-  dropout: 0.25
+  layer_constraints_1: False   # True, False orthogonal conv weight
+  dropout: 0
   r: 1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
   smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
+  patience_param: 30
 inference:
   infer_id: EINV2_tPIT_n1
   testset_type: eval # dev | eval
   test_fold: None
   overlap: 1&2
   train_ids: EINV2_tPIT_n1
-  models: SELD_ATT_LIGHT #EINV2  #SELD_ATT #SELD_ATT_LIGHT
-  batch_size: 16
+  models: EINV2 #EINV2  #SELD_ATT #SELD_ATT_LIGHT
+  batch_size: 32
   threshold_sed: 0.5
   remark: None
