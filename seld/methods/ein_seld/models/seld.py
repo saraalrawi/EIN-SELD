@@ -17,7 +17,7 @@ class EINV2(nn.Module):
 
         self.downsample_ratio = 2 ** 2
         self.sed_conv_block1 = nn.Sequential(
-            DoubleConv(in_channels=4, out_channels=64),
+            DoubleConv(in_channels=self.in_channels, out_channels=64),
             nn.AvgPool2d(kernel_size=(2, 2)),
         )
         self.sed_conv_block2 = nn.Sequential(
@@ -96,8 +96,8 @@ class EINV2(nn.Module):
         """
         x: waveform, (batch_size, num_channels, data_length)
         """
-        x_sed = x[:, :4]
-        #x_sed = x
+        #x_sed = x[:, :4]
+        x_sed = x
         x_doa = x
 
         ##################################################################################
@@ -342,10 +342,10 @@ class SELD_ATT(nn.Module):
                     atten_encoder[i][j][0] = self.encoder_att[i][j](shared_feature[j][0])
                     # a_hat
                     atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                    atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                    #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                     # f function
                     atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                    atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                    #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     # maxpooling
                     atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(2, 2), stride=2)
                 else:
@@ -353,30 +353,31 @@ class SELD_ATT(nn.Module):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                     elif (j == 2):
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1, 2))
                     else:
                         atten_encoder[i][j][0] = self.encoder_att[i][j](
                             torch.cat((shared_feature[j][0], atten_encoder[i][j - 1][2]), dim=1))
                         atten_encoder[i][j][1] = (atten_encoder[i][j][0]) * shared_feature[j][3]
-                        atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
+                        #atten_encoder[i][j][1] = self.dropout(atten_encoder[i][j][1])
                         atten_encoder[i][j][2] = self.encoder_block_att[j](atten_encoder[i][j][1])
-                        atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
+                        #atten_encoder[i][j][2] = self.dropout(atten_encoder[i][j][2])
                         atten_encoder[i][j][2] = F.avg_pool2d(atten_encoder[i][j][2], kernel_size=(1,2), stride=2)
         # Apply dropout
-        #x_sed = atten_encoder[0][-2][-1]
-        x_sed = self.dropout(atten_encoder[0][-2][-1])
+        x_sed = atten_encoder[0][-2][-1]
+        #x_sed = self.dropout(atten_encoder[0][-2][-1])
         x_sed = x_sed.mean(dim=3)  # (N, C, T)
-        x_doa = self.dropout(atten_encoder[1][-2][-1]) # (N, C, T)
+        #x_doa = self.dropout(atten_encoder[1][-2][-1]) # (N, C, T)
+        x_doa = atten_encoder[1][-2][-1]
         x_doa = x_doa.mean(dim=3)
 
         # for private spaces orthogonality
