@@ -255,9 +255,6 @@ class Losses:
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][0].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_att[j][i][3].weight)\
                                            + self.deconv_orth_dist(model.module.encoder_block_att[i][0].weight)
-            # apply constraint between the private spaces, only between the last conv layers of the attention modules
-            #if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'SELD_ATT':
-            #    loss_orthogonal = self.diff_loss(pred_constraint['sed_1'],pred_constraint['doa_1'])
             # orthogonality between the sed and doa branches of EINV2 model.
             if self.cfg['training']['layer_constraints_1'] and self.cfg['training']['model'] == 'EINV2':
                 loss_orthogonal = self.orth_dist_layer(model.module.sed_conv_block1[0].double_conv[0].weight,model.module.doa_conv_block1[0].double_conv[0].weight) \
@@ -308,7 +305,7 @@ class Losses:
             # no weight decay self.cfg['training']['r']
             # self.args.r
             #r = self.cfg['training']['r']
-            orthogonal_constraint_loss =  1e-3 * loss_orthogonal
+            orthogonal_constraint_loss =  1e-5  * loss_orthogonal
             loss_all = self.beta * loss_sed + (1 - self.beta) * loss_doa + orthogonal_constraint_loss
 
             losses_dict = {
@@ -532,23 +529,6 @@ class Losses:
         ct = int(np.floor(output.shape[-1] / 2))
         target[:, :, ct, ct] = torch.eye(o_c).cuda()
         return torch.norm(output - target)
-
-    '''
-    def diff_loss(self, input1, input2):
-        batch_size = input1.size(0)
-        input1 = input1.view(batch_size, -1)
-        input2 = input2.view(batch_size, -1)
-
-        input1_l2_norm = torch.norm(input1, p=2, dim=1, keepdim=True).detach()
-        input1_l2 = input1.div(input1_l2_norm.expand_as(input1) + 1e-6)
-
-        input2_l2_norm = torch.norm(input2, p=2, dim=1, keepdim=True).detach()
-        input2_l2 = input2.div(input2_l2_norm.expand_as(input2) + 1e-6)
-
-        diff_loss = torch.mean((input1_l2.t().mm(input2_l2)).pow(2)).cuda()
-        return diff_loss
-    '''
-
 # diff loss from Domain Separation Networks.
 class DiffLoss(nn.Module):
 
