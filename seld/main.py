@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from learning import evaluate, initialize, infer, preprocess, train
+from learning import evaluate, initialize, infer, preprocess, preprocess_noise_data, train
 from utils.cli_parser import parse_cli_overides
 from utils.config import get_dataset
 
@@ -35,6 +35,16 @@ def main(args, cfg):
             preprocessor.extract_scalar()
         elif args.preproc_mode == 'extract_meta':
             preprocessor.extract_meta()
+    # Preprocess noise dataset
+    if args.mode == 'preprocess_noise':
+        preprocessor = preprocess_noise_data.PreprocessorNoise(args, cfg)
+
+        if args.preproc_mode == 'extract_data':
+            preprocessor.extract_data()
+        #elif args.preproc_mode == 'extract_scalar':
+        #    preprocessor.extract_scalar()
+        #elif args.preproc_mode == 'extract_meta':
+        #    preprocessor.extract_meta()
 
     # Train
     if args.mode == 'train':
