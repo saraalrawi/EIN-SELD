@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 import os
-import wandb
+#import wandb
 
 class CheckpointIO:
     """CheckpointIO class.
@@ -142,9 +142,9 @@ class CheckpointIO:
         }
         torch.save(outdict, checkpoint_path)
         # Save as artifact for version control.
-        artifact = wandb.Artifact('model', type='model')
-        artifact.add_file(str(checkpoint_path))
-        run.log_artifact(artifact)
+        #artifact = wandb.Artifact('model', type='model')
+        #artifact.add_file(str(checkpoint_path))
+        #run.log_artifact(artifact)
 
     def load(self, checkpoint_path):
         """Load a module from a file
