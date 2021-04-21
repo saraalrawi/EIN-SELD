@@ -118,7 +118,7 @@ class CheckpointIO:
         self.value_list.append(current_value)
         self.epoch_list.append(epoch)
         checkpoint_path = self.checkpoints_dir.joinpath('{}_epoch_{}.pth'.format(self.remark, epoch))
-        self.save_file(checkpoint_path, epoch, it)
+        self.save_file(checkpoint_path, epoch, it,run)
         logging.info('Checkpoint saved to {}'.format(checkpoint_path))
 
     def save_file(self, checkpoint_path, epoch, it, run):
