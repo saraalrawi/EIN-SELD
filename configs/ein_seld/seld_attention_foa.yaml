@@ -25,11 +25,12 @@ data_augmentation:
   F: 16 # int maximum width of each freq mask
   T: 16 # int maximum width of each time mask
   num_freq_masks: 2 # int number of frequency masks
-  num_time_masks: 6 # int number of time masks
+  num_time_masks: 1 # int number of time masks
   replace_with_zero: True # Boolean if True, masked parts will be filled with 0, if False, filled with mean
 data_noise:
   add_noise: False # if true, we sample from the esc50 dataset a randome noise file and we add to the sound wave
-  SNR: 10 # Signal to noise ration
+  noisy_training: False # if true, train and validate on noisy data, False validate on noisy data only.
+  SNR: 40  #Signal to noise ratio, SNR=[0, 5, 10, 15, 20, 25, 30, 35, 40] in dB
 training:
   train_id: EINV2_tPIT_n1
   model: SELD_ATT  #EINV2  # SELD_ATT #SELD_ATT_LIGHT
@@ -69,7 +70,7 @@ inference:
   test_fold: None
   overlap: 1&2
   train_ids: EINV2_tPIT_n1
-  models: EINV2 #EINV2  #SELD_ATT #SELD_ATT_LIGHT
+  models: SELD_ATT #EINV2  #SELD_ATT #SELD_ATT_LIGHT
   batch_size: 32
   threshold_sed: 0.5
   remark: None
