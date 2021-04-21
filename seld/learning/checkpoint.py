@@ -100,7 +100,7 @@ class CheckpointIO:
         elif rank_order == 'latest':
             self.save_file(best_checkpoint_path, epoch, it,run)
 
-    def del_and_save(self, worst_index, current_value, epoch, it):
+    def del_and_save(self, worst_index, current_value, epoch, it,run):
         """Delete and save checkpoint
         
         Args:
