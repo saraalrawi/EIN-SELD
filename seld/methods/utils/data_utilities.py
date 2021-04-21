@@ -2,6 +2,12 @@ import numpy as np
 import pandas as pd
 import torch
 import math
+import os
+import scipy
+import librosa
+import matplotlib
+import matplotlib.pyplot as plt
+
 
 
 def _segment_index(x, chunklen, hoplen, last_frame_always_paddding=False):
@@ -150,7 +156,43 @@ def to_metrics2020_format(label_dict, num_frames, label_resolution):
             output_dict[n_block][n_class].append([keys, values])
 
     return output_dict
-def add_real_life_noise(waveform, noise, SNR=10):
+
+[width, height] = matplotlib.rcParams['figure.figsize']
+if width < 10:
+  matplotlib.rcParams['figure.figsize'] = [width * 2.5, height]
+
+
+def plot_waveform(waveform,segment_begin,segment_end,path, indicate ,title="Waveform", xlim=None, ylim=None):
+    num_channels, num_frames = waveform.shape
+    time_axis = torch.arange(0, num_frames)
+    #// sample_rate
+    figure, axes = plt.subplots(num_channels, 1)
+    if num_channels == 1:
+        axes = [axes]
+    for c in range(num_channels):
+        axes[c].plot(time_axis, waveform[c], linewidth=1)
+        axes[c].grid(True)
+        if num_channels > 1:
+            axes[c].set_ylabel(f'Channel {c + 1}')
+        if xlim:
+            axes[c].set_xlim(xlim)
+        if ylim:
+            axes[c].set_ylim(ylim)
+    figure.suptitle(title)
+    dir = './plots'
+    file_name = os.path.basename(path)
+    plt.savefig(file_name +'_'+segment_begin+'_'+ segment_end + '_'+ indicate + '.png', format = 'png')
+    plt.close(figure)
+    #plt.savefig(str(file_name+'_'+segment_begin+'_'+segment_end + '.png'))
+    #plt.show(block=False)
+
+#SNR in db
+def add_real_life_noise(waveform,noise,data_info, SNR=0, plot=True):
+
+    if plot:
+        # plot the wave without noise
+        plot_waveform(waveform,str(data_info[0]), str(data_info[1]),str(data_info[2]), 'NoNoise', title="Waveform", xlim=None,ylim=None)
+
     # adjust the size of the noise wave according to the data wave
     if(len(noise[0,:])> len(waveform[0,:])):
         noise = noise[:,0:len(waveform[0,:])]
@@ -168,6 +210,8 @@ def add_real_life_noise(waveform, noise, SNR=10):
     waveform[2,:] = waveform[2,:] + noise
     waveform[3,:] = waveform[3,:] + noise
     # return the noisy wave to train the model with it
+    if plot:
+        plot_waveform(waveform, str(data_info[0]), str(data_info[1]),data_info[2], 'Noise',title="Waveform with Real Life Noise", xlim=None,ylim=None)
     return waveform
 
 
