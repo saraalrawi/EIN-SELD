@@ -8,7 +8,6 @@ from methods.utils.data_utilities import (_segment_index, load_dcase_format,
                                           to_metrics2020_format, add_real_life_noise)
 from methods.ein_seld.data_augmentation.pitch_shift import apply_pitch_shift
 from methods.ein_seld.data_augmentation.channel_rotation import *
-
 from torch.utils.data import Dataset, Sampler
 from tqdm import tqdm
 from utils.common import int16_samples_to_float32
@@ -239,14 +238,22 @@ class UserDataset(Dataset):
             else:
                 with h5py.File(data_path, 'r') as hf:
                     x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
+            data_info = [index_begin, index_end, data_path]
             if self.cfg['data_noise']['add_noise']:
                 # sample a random file from the noise dataset and add it to x
                 noise_wave_path = random.choice(self.paths_noise_list)
-                with h5py.File(noise_wave_path, 'r') as hf:
-                    # [()] is the new way of getting the scalar value instead of .value
-                    noise_wave = int16_samples_to_float32(hf['waveform'][()])
-                x = add_real_life_noise(x,noise_wave,self.cfg['data_noise']['SNR'])
-            pad_width = ((0, 0), (pad_width_before, pad_width_after))                    
+                data_info.append(noise_wave_path)
+                if not self.cfg['data_noise']['noisy_training'] and self.dataset_type == 'valid':
+                    with h5py.File(noise_wave_path, 'r') as hf:
+                        # [()] is the new way of getting the scalar value instead of .value
+                        noise_wave = int16_samples_to_float32(hf['waveform'][()])
+                    x = add_real_life_noise(x,noise_wave,data_info,self.cfg['data_noise']['SNR'], plot=False)
+                if self.cfg['data_noise']['noisy_training']:
+                    with h5py.File(noise_wave_path, 'r') as hf:
+                        # [()] is the new way of getting the scalar value instead of .value
+                        noise_wave = int16_samples_to_float32(hf['waveform'][()])
+                    x = add_real_life_noise(x,noise_wave,data_info,self.cfg['data_noise']['SNR'], plot=False)
+            pad_width = ((0, 0), (pad_width_before, pad_width_after))
             x = np.pad(x, pad_width, mode='constant')
             if 'test' not in self.dataset_type:
                 ov = fn[-1]
