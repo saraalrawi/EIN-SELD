@@ -141,6 +141,7 @@ class CheckpointIO:
             'np_random': np.random.get_state(),
         }
         torch.save(outdict, checkpoint_path)
+
         # Save as artifact for version control.
         #artifact = wandb.Artifact('model', type='model')
         #artifact.add_file(str(checkpoint_path))
