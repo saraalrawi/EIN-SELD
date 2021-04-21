@@ -13,7 +13,7 @@ def train(cfg, **initializer):
     """
     dict_cofig = cfg
     run = wandb.init(project="ein-2021", config=dict_cofig , entity='newseld')
-    #wandb.save("./*.pth", base_path="./")
+    #.save("./*.pth", base_path="./")
     #run.save()
     writer = initializer['writer']
     train_generator = initializer['train_generator']
@@ -66,7 +66,7 @@ def train(cfg, **initializer):
             for k, v in valid_losses.items():
 
                 wandb.log({k: v })
-           
+                
             wandb.log({'Er20': valid_metrics['ER20'] })
             wandb.log({'F20': valid_metrics['F20'] })
             wandb.log({'LE20': valid_metrics['LE20'] })
@@ -110,9 +110,9 @@ def train(cfg, **initializer):
         ###############
         if rem_batch == 0 and it > 0:
             if cfg['training']['valid_fold']:
-                ckptIO.save(epoch_it, it, metrics=valid_metrics, key_rank='seld20', rank_order='latest')
+                ckptIO.save(epoch_it, it,run, metrics=valid_metrics, key_rank='seld20', rank_order='latest')
             else:
-                ckptIO.save(epoch_it, it, metrics=train_losses, key_rank='loss_all', rank_order='latest')
+                ckptIO.save(epoch_it, it,run, metrics=train_losses, key_rank='loss_all', rank_order='latest')
 
         ###############
         ## Finish training
