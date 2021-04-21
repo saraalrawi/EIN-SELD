@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 import os
-#import wandb
+import wandb
 
 class CheckpointIO:
     """CheckpointIO class.
@@ -45,7 +45,7 @@ class CheckpointIO:
         df_header = pd.DataFrame(columns=header)
         df_header.to_csv(self.checkpoints_csv_path, sep='\t', index=False, mode='a+')    
 
-    def save(self, epoch, it, metrics, key_rank=None, rank_order='high'):
+    def save(self, epoch, it,run, metrics, key_rank=None, rank_order='high'):
         """Save model. It will save a latest model, a best model of rank_order for value, and 
         'self.num_checkpoints' best models of rank_order for value.
 
@@ -69,14 +69,14 @@ class CheckpointIO:
 
         # latest model
         latest_checkpoint_path = self.checkpoints_dir.joinpath('{}_epoch_latest.pth'.format(self.remark))
-        self.save_file(latest_checkpoint_path, epoch, it)
+        self.save_file(latest_checkpoint_path, epoch, it,run)
 
         # self.num_checkpoints best models
         if len(self.value_list) < self.num_checkpoints:
             self.value_list.append(current_value)
             self.epoch_list.append(epoch)
             checkpoint_path = self.checkpoints_dir.joinpath('{}_epoch_{}.pth'.format(self.remark, epoch))
-            self.save_file(checkpoint_path, epoch, it)
+            self.save_file(checkpoint_path, epoch, it,run)
             logging.info('Checkpoint saved to {}'.format(checkpoint_path))
         elif len(self.value_list) >= self.num_checkpoints:
             value_list = np.array(self.value_list)
@@ -94,11 +94,11 @@ class CheckpointIO:
         value_list = np.array(self.value_list)
         best_checkpoint_path = self.checkpoints_dir.joinpath('{}_epoch_best.pth'.format(self.remark))
         if rank_order == 'high' and current_value >= value_list.max():
-            self.save_file(best_checkpoint_path, epoch, it)
+            self.save_file(best_checkpoint_path, epoch, it,run)
         elif rank_order == 'low' and current_value <= value_list.min():
-            self.save_file(best_checkpoint_path, epoch, it)
+            self.save_file(best_checkpoint_path, epoch, it,run)
         elif rank_order == 'latest':
-            self.save_file(best_checkpoint_path, epoch, it)
+            self.save_file(best_checkpoint_path, epoch, it,run)
 
     def del_and_save(self, worst_index, current_value, epoch, it):
         """Delete and save checkpoint
@@ -121,7 +121,7 @@ class CheckpointIO:
         self.save_file(checkpoint_path, epoch, it)
         logging.info('Checkpoint saved to {}'.format(checkpoint_path))
 
-    def save_file(self, checkpoint_path, epoch, it):
+    def save_file(self, checkpoint_path, epoch, it, run):
         """Save a module to a file
 
         Args:
@@ -141,7 +141,10 @@ class CheckpointIO:
             'np_random': np.random.get_state(),
         }
         torch.save(outdict, checkpoint_path)
-        #wandb.save(os.path.join(wandb.run.dir, "*latest.pth"))
+        # Save as artifact for version control.
+        artifact = wandb.Artifact('model', type='model')
+        artifact.add_file(str(checkpoint_path))
+        run.log_artifact(artifact)
 
     def load(self, checkpoint_path):
         """Load a module from a file
