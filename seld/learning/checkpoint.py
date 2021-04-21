@@ -82,13 +82,13 @@ class CheckpointIO:
             value_list = np.array(self.value_list)
             if rank_order == 'high' and current_value >= value_list.min():
                 worst_index = value_list.argmin()
-                self.del_and_save(worst_index, current_value, epoch, it)
+                self.del_and_save(worst_index, current_value, epoch, it,run)
             elif rank_order == 'low' and current_value <= value_list.max():
                 worst_index = value_list.argmax()
-                self.del_and_save(worst_index, current_value, epoch, it)            
+                self.del_and_save(worst_index, current_value, epoch, it,run)
             elif rank_order == 'latest':
                 worst_index = 0
-                self.del_and_save(worst_index, current_value, epoch, it) 
+                self.del_and_save(worst_index, current_value, epoch, it,run)
 
         # best model
         value_list = np.array(self.value_list)
