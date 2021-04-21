@@ -57,8 +57,8 @@ training:
   weight_constraints: False # orthogonal - kernel orthogonality
   layer_constraints: False # orthogonal - kernel orthogonality between the sed and doa branches
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
-  weight_constraints_1: True  # True, False orthogonal conv weight
-  layer_constraints_1: False   # True, False orthogonal conv weight
+  weight_constraints_1: False  # True, False orthogonal conv weight
+  layer_constraints_1: True   # True, False orthogonal conv weight
   dropout: 0 # no dropout
   r: 1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
