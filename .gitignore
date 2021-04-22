@@ -1,0 +1,5 @@
+__pycache__
+wandb
+/out_train*
+/test_*
+*.png*
