@@ -1,9 +1,9 @@
 method: ein_seld
 dataset: dcase2020task3
-workspace_dir: /home/alrawis/EIN-SELD/
-dataset_dir: /home/alrawis/EIN-SELD/_dataset/dataset_root/
-dataset_noise_dir: /home/alrawis/EIN-SELD/ESC-50/
-hdf5_dir: /home/alrawis/EIN-SELD/_hdf5/
+workspace_dir: /home/zuern/EIN-SELD/
+dataset_dir: /home/zuern/EIN-SELD/_dataset/dataset_root/
+dataset_noise_dir: /home/zuern/EIN-SELD/ESC-50/
+hdf5_dir: /home/zuern/EIN-SELD/_hdf5/
 data:
   type: foa # mic # ecs50
   sample_rate: 24000
