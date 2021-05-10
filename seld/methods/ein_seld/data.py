@@ -35,6 +35,7 @@ class UserDataset(Dataset):
         self.frame_length = int(self.clip_length / self.label_resolution)
         self.label_interp_ratio = int(self.label_resolution * self.sample_rate / cfg['data']['hop_length'])
         self.cfg = cfg
+        self.single_file = self.cfg['training']['single_file']
 
         # Chunklen and hoplen and segmentation. Since all of the clips are 60s long, it only segments once here
         data = np.zeros((1, self.clip_length * self.sample_rate))
@@ -146,10 +147,12 @@ class UserDataset(Dataset):
             self.meta_dir = eval_meta_dir
             self.paths_list = [path for data_dir in data_dirs for path in sorted(data_dir.glob('*.h5')) \
                 if not path.name.startswith('.')]
-        self.paths_list = [Path(str(path) + '%' + str(n)) for path in self.paths_list for n in range(self.num_segments)]
-
-
-
+        if self.single_file:
+            self.paths_list = [Path(str(path)) for path in self.paths_list]
+        else:
+            # list of files segmented - each file has 15 segments.
+            self.paths_list = [Path(str(path) + '%' + str(n)) for path in self.paths_list for n in
+                               range(self.num_segments)]
 
         # Read into memory
         if self.read_into_mem:
@@ -172,7 +175,7 @@ class UserDataset(Dataset):
                     ov = fn[-1]
                     index_begin_label = int(index_begin / (self.sample_rate * self.label_resolution))
                     index_end_label = int(index_end / (self.sample_rate * self.label_resolution))
-                    # pad_width_before_label = int(pad_width_before / (self.sample_rate * self.label_resolution))
+                    #pad_width_before_label = int(pad_width_before / (self.sample_rate * self.label_resolution))
                     pad_width_after_label = int(pad_width_after / (self.sample_rate * self.label_resolution))
                     meta_path = self.meta_dir.joinpath(fn + '.h5')
                     with h5py.File(meta_path, 'r') as hf:
@@ -220,8 +223,10 @@ class UserDataset(Dataset):
                 ov = data_dict['ov']
                 sed_label = data_dict['sed_label']
                 doa_label = data_dict['doa_label']
-        else:
+        if not self.read_into_mem and not self.single_file:
+            # this line returns a segment
             path = self.paths_list[idx]
+            # segment the file into 15 segments
             fn, n_segment = path.stem, int(path.name.split('%')[1])
             data_path = Path(str(path).split('%')[0])
             index_begin = self.segmented_indexes[n_segment][0]
@@ -259,7 +264,7 @@ class UserDataset(Dataset):
                 ov = fn[-1]
                 index_begin_label = int(index_begin / (self.sample_rate * self.label_resolution))
                 index_end_label = int(index_end / (self.sample_rate * self.label_resolution))
-                # pad_width_before_label = int(pad_width_before / (self.sample_rate * self.label_resolution))
+                #pad_width_before_label = int(pad_width_before / (self.sample_rate * self.label_resolution))
                 pad_width_after_label = int(pad_width_after / (self.sample_rate * self.label_resolution))
                 meta_path = self.meta_dir.joinpath(fn + '.h5')
                 with h5py.File(meta_path, 'r') as hf:
@@ -278,7 +283,64 @@ class UserDataset(Dataset):
                         sed_label = np.flip(sed_label, axis=0)  # invert sed label time axis
                         doa_label = np.flip(doa_label, axis=0)  # invert doa label time axis
                         doa_label = 0.0 - doa_label  # also invert sound source position
-                '''
+                 '''
+        if self.single_file:
+            sample = []
+            # this line returns a segment
+            path = self.paths_list[idx]
+            # segment the path
+            #segmeneted_file = [Path(str(path) + '%' + str(n)) for n in range(self.num_segments)]
+            #fn, n_segment = path.stem, int(path.name.split('%')[1])
+            fn  = path.stem 
+            data_path = Path(str(path).split('%')[0])
+            for i , n_segment in enumerate(self.segmented_indexes):
+                index_begin = n_segment[0]
+                index_end = n_segment[1]
+
+                pad_width_before = self.segmented_pad_width[i][0]
+                pad_width_after = self.segmented_pad_width[i][1]
+
+                with h5py.File(data_path, 'r') as hf:
+                    x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
+                pad_width = ((0, 0), (pad_width_before, pad_width_after))
+                x = np.pad(x, pad_width, mode='constant')
+                if 'test' not in self.dataset_type:
+                    ov = fn[-1]
+                    index_begin_label = int(index_begin / (self.sample_rate * self.label_resolution))
+                    index_end_label = int(index_end / (self.sample_rate * self.label_resolution))
+                    #pad_width_before_label = int(pad_width_before / (self.sample_rate * self.label_resolution))
+                    pad_width_after_label = int(pad_width_after / (self.sample_rate * self.label_resolution))
+                    meta_path = self.meta_dir.joinpath(fn + '.h5')
+                    with h5py.File(meta_path, 'r') as hf:
+                        sed_label = hf['sed_label'][index_begin_label: index_end_label, ...]
+                        doa_label = hf['doa_label'][index_begin_label: index_end_label, ...] # NOTE: this is Catesian coordinates
+                    if pad_width_after_label != 0:
+                        sed_label_new = np.zeros((pad_width_after_label, 2, 14))
+                        doa_label_new = np.zeros((pad_width_after_label, 2, 3))
+                        sed_label = np.concatenate((sed_label, sed_label_new), axis=0)
+                        doa_label = np.concatenate((doa_label, doa_label_new), axis=0)
+
+                if 'test' not in self.dataset_type:
+                    single_sample = {
+                        'filename': fn,
+                        'data_type': self.dataset_type,
+                        'n_segment': n_segment,
+                        'ov': ov,
+                        'waveform': x,
+                        'sed_label': sed_label,
+                        'doa_label': doa_label
+
+                    }
+                    sample.append(single_sample)
+                else:
+                    single_sample = {
+                        'filename': fn,
+                        'n_segment': n_segment,
+                        'waveform': x,
+                        'data_type': self.dataset_type
+                    }
+                    sample.append(single_sample)
+            return sample
 
         if 'test' not in self.dataset_type:
             sample = {
@@ -346,7 +408,7 @@ class UserBatchSampler(Sampler):
 
 
 class PinMemCustomBatch:
-    def __init__(self, batch_dict):
+    def __init__(self, batch_dict, single_file):
         batch_fn = []
         batch_n_segment = []
         batch_ov = []
@@ -354,15 +416,26 @@ class PinMemCustomBatch:
         batch_sed_label = []
         batch_doa_label = []
         batch_data_type = []
-        
-        for n in range(len(batch_dict)):
-            batch_fn.append(batch_dict[n]['filename'])
-            batch_data_type.append(batch_dict[n]['data_type'])
-            batch_n_segment.append(batch_dict[n]['n_segment'])
-            batch_ov.append(batch_dict[n]['ov'])
-            batch_x.append(batch_dict[n]['waveform'])
-            batch_sed_label.append(batch_dict[n]['sed_label'])
-            batch_doa_label.append(batch_dict[n]['doa_label'])
+
+        if single_file:
+            batch_dict = batch_dict[0]
+            for n in range(len(batch_dict)):
+                batch_fn.append(batch_dict[n]['filename'])
+                batch_data_type.append(batch_dict[n]['data_type'])
+                batch_n_segment.append(batch_dict[n]['n_segment'])
+                batch_ov.append(batch_dict[n]['ov'])
+                batch_x.append(batch_dict[n]['waveform'])
+                batch_sed_label.append(batch_dict[n]['sed_label'])
+                batch_doa_label.append(batch_dict[n]['doa_label'])
+        else:
+            for n in range(len(batch_dict)):
+                batch_fn.append(batch_dict[n]['filename'])
+                batch_data_type.append(batch_dict[n]['data_type'])
+                batch_n_segment.append(batch_dict[n]['n_segment'])
+                batch_ov.append(batch_dict[n]['ov'])
+                batch_x.append(batch_dict[n]['waveform'])
+                batch_sed_label.append(batch_dict[n]['sed_label'])
+                batch_doa_label.append(batch_dict[n]['doa_label'])
 
         self.batch_out_dict = {
             'filename': batch_fn,
@@ -381,12 +454,12 @@ class PinMemCustomBatch:
         return self.batch_out_dict
 
 
-def collate_fn(batch_dict):
+def collate_fn(batch_dict, single_file=False):
     """
     Merges a list of samples to form a mini-batch
     Pin memory for customized dataset
     """
-    return PinMemCustomBatch(batch_dict)
+    return PinMemCustomBatch(batch_dict, single_file)
 
 
 class PinMemCustomBatchTest:
