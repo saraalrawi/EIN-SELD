@@ -38,7 +38,7 @@ training:
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
-  single_file: False
+  single_file: False # when set to True, batch_size must be = 1
   weight_sharing: attention_se  #stitching, attention_se (squeeze and excitation block), attention_residual
   batch_size: 32
   train_fold: 2,3,4,5,6 #3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
