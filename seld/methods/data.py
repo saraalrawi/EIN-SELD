@@ -25,6 +25,7 @@ class BaseDataset(Dataset):
         self.args = args
         self.sample_rate = cfg['data']['sample_rate']
         self.clip_length = dataset.clip_length
+        self.single_file = cfg['training']['single_file']
 
         # Chunklen and hoplen and segmentation. Since all of the clips are 60s long, it only segments once here
         data = np.zeros((1, self.clip_length * self.sample_rate))
@@ -37,8 +38,9 @@ class BaseDataset(Dataset):
         main_data_dir = Path(cfg['hdf5_dir']).joinpath(cfg['dataset']).joinpath('data').joinpath(data_sr_folder_name)
         self.data_dir = main_data_dir.joinpath('dev').joinpath(cfg['data']['type'])
         self.fn_list = [path.stem for path in sorted(self.data_dir.glob('*.h5')) \
-            if not path.name.startswith('.')]           
-        self.fn_list = [fn + '%' + str(n) for fn in self.fn_list for n in range(self.num_segments)]
+            if not path.name.startswith('.')]
+        if not self.single_file:
+            self.fn_list = [fn + '%' + str(n) for fn in self.fn_list for n in range(self.num_segments)]
 
     def __len__(self):
         """Get length of the dataset
@@ -64,10 +66,28 @@ class BaseDataset(Dataset):
         sample = {
             'waveform': x
         }
-          
-        return sample    
+        if self.single_file:
+            sample = []
+            fn_segment = self.fn_list[idx]
+            fn, n_segment = fn_segment.split('%')[0], int(fn_segment.split('%')[1])
+            data_path = self.data_dir.joinpath(fn + '.h5')
+            for i, n_segment in fn_segment:
+                index_begin = n_segment[0]
+                index_end = n_segment[1]
+                pad_width_before = self.segmented_pad_width[n_segment][0]
+                pad_width_after = self.segmented_pad_width[n_segment][1]
 
+                with h5py.File(data_path, 'r') as hf:
+                    x = int16_samples_to_float32(hf['waveform'][:, index_begin: index_end])
+                pad_width = ((0, 0), (pad_width_before, pad_width_after))
+                x = np.pad(x, pad_width, mode='constant')
+                single_sample = {
+                    'waveform': x
+                }
+                sample.append(single_sample)
+            return sample
 
+        return sample
 class UserBatchSampler(Sampler):
     """User defined batch sampler. Only for train set.
 
@@ -110,8 +130,6 @@ class UserBatchSampler(Sampler):
 
     def __len__(self):
         return (self.clip_num + self.batch_size - 1) // self.batch_size
-
-
 class PinMemCustomBatch:
     def __init__(self, batch_dict):
         batch_x = []
@@ -120,12 +138,9 @@ class PinMemCustomBatch:
         self.batch_out_dict = {
             'waveform': torch.tensor(batch_x, dtype=torch.float32),
         }
-
     def pin_memory(self):
         self.batch_out_dict['waveform'] = self.batch_out_dict['waveform'].pin_memory()
         return self.batch_out_dict
-
-
 def collate_fn(batch_dict):
     """
     Merges a list of samples to form a mini-batch
