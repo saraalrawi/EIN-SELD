@@ -64,7 +64,7 @@ training:
   r: 1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: False  # Whether to use inverse position augmentation or not
   smoothness_loss: False  # Whether to use a smoothness loss for the doa predictions
-  patience_param: 30
+  patience_param: 40
 inference:
   infer_id: EINV2_tPIT_n1
   testset_type: eval # dev | eval
