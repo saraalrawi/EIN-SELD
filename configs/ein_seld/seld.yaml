@@ -5,7 +5,7 @@ dataset_dir: /home/alrawis/EIN-SELD/_dataset/dataset_root/
 dataset_noise_dir: /home/alrawis/EIN-SELD/ESC-50/
 hdf5_dir: /home/alrawis/EIN-SELD/_hdf5/
 data:
-  type: foa # mic # ecs50
+  type: mic # mic # ecs50
   sample_rate: 24000
   n_fft: 1024
   hop_length: 600
@@ -20,7 +20,7 @@ data:
   audio_feature: logmel&intensity
   feature_freeze: True
 data_augmentation:
-  type: train_invert_position_aug   #train_invert_position_aug #train_spec_aug train_rotate_channel, pitchshift
+  type: None   #train_invert_position_aug #train_spec_aug train_rotate_channel, pitchshift
   # SpecAugment Parameter
   F: 16 # int maximum width of each freq mask
   T: 16 # int maximum width of each time mask
@@ -33,13 +33,14 @@ data_noise:
   SNR: 10  #Signal to noise ratio, SNR=[0, 5, 10, 15, 20, 25, 30, 35, 40] in dB
 training:
   train_id: EINV2_tPIT_n1
+  wandb_active: True
   model: EINV2  #EINV2  # SELD_ATT #SELD_ATT_LIGHT
   resume_model: #/home/alrawis/EIN-SELD/out_train_att_Mar03_16-56-25foa/ein_seld/EINV2_tPIT_n1/checkpoints/pe=False_epoch_57.pth # None_epoch_latest.pth
   loss_type: all
   loss_beta: 0.5
   PIT_type: tPIT
   single_file: False # when set to True, batch_size must be = 1
-  weight_sharing: attention_se  #stitching, attention_se (squeeze and excitation block), attention_residual
+  weight_sharing: stitching  #stitching, attention_se (squeeze and excitation block), attention_residual
   batch_size: 32
   train_fold: 2,3,4,5,6 #3,4,5,6  # 2,3,4,5,6 this corresponds to the eval mode in seld dcase2020
   #3,4,5,6 #this corresponds to the dev mode in seld dcase2020
@@ -59,8 +60,8 @@ training:
   weight_constraints: False # orthogonal - kernel orthogonality
   layer_constraints: False # orthogonal - kernel orthogonality between the sed and doa branches
   orthogonal_decay: 1e-1  # 1e-3 1e-6 kernel orthogonality weight decay
-  weight_constraints_1: True  # True, False orthogonal conv weight
-  layer_constraints_1: False   # True, False orthogonal conv weight
+  weight_constraints_1: False   # True, False orthogonal conv weight
+  layer_constraints_1: False    # True, False orthogonal conv weight
   dropout: 0 # no dropout
   r: 1   # 1e-3 1e-5 conv orthogonality weight penalty
   invert_position_aug: True  # Whether to use inverse position augmentation or not
