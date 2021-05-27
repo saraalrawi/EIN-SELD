@@ -78,13 +78,25 @@ class LogmelIntensity_Extractor(nn.Module):
         output:
             (batch_size, channels, time_steps, freq_bins)
         """
+        # for infrerence
+
+        if x.ndim == 3:
+            x = self.stft_extractor(x)
+            logmel = self.logmel_extractor(self.spectrogram_extractor(x))
+            intensity_vector = self.intensityVector_extractor(x, self.logmel_extractor.melW)
+            out = torch.cat((logmel, intensity_vector), dim=1)
+            return out
+        else:
+            raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
+                                                Now it is {}".format(x.shape))
+
         input, target, ind, data_type = x
         if input.ndim != 3:
             raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
                             Now it is {}".format(input.shape))
-        self.plot_waveform(input[0])
-        melspec = self.define_transformation(input[0])
-        self.plot_spectrogram(melspec)
+        #self.plot_waveform(input[0])
+        #melspec = self.define_transformation(input[0])
+        #self.plot_spectrogram(melspec)
         # get the indices of augmented data
         aug_idx_inverse = [i for i, x in enumerate(data_type) if x == "train_invert_position_aug"]
         if ind == 'train' and len(aug_idx_inverse) != 0:
