@@ -46,9 +46,13 @@ class Inferer(BaseInferer):
             with torch.no_grad():
                 self.af_extractor.eval()
                 self.model.eval()
+                #(batch_x, batch_target) = self.af_extractor((batch_x, batch_target, valid_type, data_type))
                 batch_x = self.af_extractor(batch_x)
                 batch_x = (batch_x - self.mean) / self.std
-                pred = self.model(batch_x)
+                if self.cfg['training']['model'] == 'SELD_ATT':
+                    pred, _  = self.model(batch_x)
+                else:
+                    pred = self.model(batch_x)
                 pred['sed'] = torch.sigmoid(pred['sed'])
             fn_list.append(batch_sample['filename'])
             n_segment_list.append(batch_sample['n_segment'])
