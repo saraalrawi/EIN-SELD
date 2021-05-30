@@ -80,15 +80,16 @@ class LogmelIntensity_Extractor(nn.Module):
         """
         # for infrerence
 
-        if x.ndim == 3:
-            x = self.stft_extractor(x)
-            logmel = self.logmel_extractor(self.spectrogram_extractor(x))
-            intensity_vector = self.intensityVector_extractor(x, self.logmel_extractor.melW)
-            out = torch.cat((logmel, intensity_vector), dim=1)
-            return out
-        else:
-            raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
-                                                Now it is {}".format(x.shape))
+        if type(x)!= tuple :
+            if x.ndim == 3:
+                x = self.stft_extractor(x)
+                logmel = self.logmel_extractor(self.spectrogram_extractor(x))
+                intensity_vector = self.intensityVector_extractor(x, self.logmel_extractor.melW)
+                out = torch.cat((logmel, intensity_vector), dim=1)
+                return out
+            else:
+                raise ValueError("x shape must be (batch_size, num_channels, data_length)\n \
+                                                    Now it is {}".format(x.shape))
 
         input, target, ind, data_type = x
         if input.ndim != 3:
