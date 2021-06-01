@@ -59,7 +59,7 @@ sh scripts/preproc.sh
 Preprocessing for meta files/labels separate labels to different tracks, each with up to one event and a corresponding DoA. The same event is consistently put in the same track. The authors of EINV2 claims that this is necessary for chunk-level PIT; however, there is no code provided for chunk-level PIT and we can train our models with frame-level PIT.
 
 ## Training
-The training configurations are saved in `yml` files. Basically, we have the following networks `EINV2`, `EINV2-C`,  `SELD_ATT` and `EINV2` with `weight_sharing` configured as `attention_se` . The  `EINV2` and `EINV2-C` are the baselines, `SELD_ATT` is `VASELD` and `EINV2-C` with `weight_sharing: attention_se` is `S&ESELD`. 
+The training configurations are saved in `ymal` files. Basically, we have the following networks `EINV2`, `EINV2-C`,  `SELD_ATT` and `EINV2` with `weight_sharing` configured as `attention_se` . The  `EINV2` and `EINV2-C` are the baselines, `SELD_ATT` is `VASELD` and `EINV2-C` with `weight_sharing: attention_se` is `S&ESELD`. 
 To train the models, we provided indiviual confige file for each model. 
 The dataset has two sets of folds: `train_fold` and `valid_fold`. We report our results on `valid_fold` and combined `overlap`, namely `1&2`. The hyper-parameter description is provided as comments in the `seld_*.yml` files. 
  
