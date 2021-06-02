@@ -60,9 +60,14 @@ Preprocessing for meta files/labels separate labels to different tracks, each wi
 
 ## Training
 The training configurations are saved in `ymal` files. Basically, we have the following networks `EINV2`, `EINV2-C`,  `SELD_ATT` and `EINV2` with `weight_sharing` configured as `attention_se` . The  `EINV2` and `EINV2-C` are the baselines, `SELD_ATT` is `VASELD` and `EINV2-C` with `weight_sharing: attention_se` is `S&ESELD`. 
-To train the models, we provided indiviual confige file for each model. 
+To train the models, we provided indiviual config file for each model, we further use weight and biases logging tool to observe the learning curves. 
 The dataset has two sets of folds: `train_fold` and `valid_fold`. We report our results on `valid_fold` and combined `overlap`, namely `1&2`. The hyper-parameter description is provided as comments in the `seld_*.yml` files. 
  
+To weight and biases install run the following command in your activated `ein` conda environment. You can deactive the logging by setting `wandb_active:False` in the config file.
+
+```bash
+pip install wandb
+```
 
 ### Baselines
 Baseline EINV2
