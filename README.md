@@ -50,6 +50,7 @@ conda activate ein
 ```
 
 ## Preprocessing
+The config files are saved EIN-SELD/configs/ein_seld/, you need to change to the path to your home directory.
 Here the audio and metadata/labels will be processed so the  `.wav` files will be saved to `.h5` files. Meta files will also be converted to `.h5` files. Run the following script after downloading the data.
 
 ```bash
