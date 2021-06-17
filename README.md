@@ -88,7 +88,7 @@ sh scripts/train_visual.sh
 sh scripts/train_se.sh
 ```
 
-##Prediction
+## Prediction
 The prediction results will be provided per file for the test dataset that consists of 200 files and saved in `foa_eval` and `mic_eval` for `FOA` and `MIC` datasets, respectively. The models output will be converted to DCASE format and saved in in `/out_infer_model_name` as `csv` files.
 The provided `predict.sh` is for our VASEL.
 
