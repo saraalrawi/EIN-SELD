@@ -104,3 +104,6 @@ python3 visualize_prediction.py --dataset_dir YOUR_USER_DIR/EIN-SELD/_dataset/da
 The output file will be saved as a `.jpg` in the provided location. 
 
 ## Evaluation
+```bash
+bash scripts/evaluate.sh
+```
